@@ -1,5 +1,5 @@
 local M = {}
-M.inspecters = { require("imselect.inspecter.nvimtex").setup(), require("imselect.inspecter.default").setup() }
+M.inspecters = { require("imselect.inspecter.nvimtex").setup({}), require("imselect.inspecter.default").setup({}) }
 function M.apply(buffer)
 	for _, inspecter in ipairs(M.inspecters) do
 		if inspecter.apply(buffer) then
