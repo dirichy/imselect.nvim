@@ -10,6 +10,17 @@ local default_opts = {
 		Darwin = "fcitx",
 		Linux = "fcitx",
 	},
+	strategy = {
+		strategy = { require("imselect.strategy.nvimtex"), require("imselect.strategy.default") },
+		strategy_provider = {
+			nvimtex = { filetype = { "tex", "latex" } },
+			default = {
+				inspecter = function()
+					return true
+				end,
+			},
+		},
+	},
 }
 
 local im_state = {

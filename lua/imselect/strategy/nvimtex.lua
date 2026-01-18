@@ -1,11 +1,12 @@
 ---This strategy is to select im in latex file, smartly disable im in math environment.
 ---@type Imselect.Strategy
-local M = { priority = 100 }
+local M = { priority = 100, name = "nvimtex" }
+local util = require("imselect.util")
 local default_opts = { filetype = { "tex", "latex" } }
-function M.setup(opts)
+M.setup = util.once(function(opts)
 	default_opts = vim.tbl_deep_extend("force", default_opts, opts)
 	return M
-end
+end)
 local tex
 function M.condition(buffer)
 	local filetype = vim.bo[buffer].filetype
