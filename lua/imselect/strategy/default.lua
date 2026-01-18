@@ -1,3 +1,4 @@
+---@type Imselect.Strategy
 local M = { priority = 0 }
 local default_opts = {
 	inspecter = function()
@@ -8,8 +9,8 @@ function M.setup(opts)
 	default_opts = vim.tbl_deep_extend("force", default_opts, opts)
 	return M
 end
-function M.apply(buffer)
-	require("imselect").set_inspecter(buffer, default_opts.inspecter)
+M.inspecter = default_opts.inspecter
+function M.condition(buffer)
 	return true
 end
 return M

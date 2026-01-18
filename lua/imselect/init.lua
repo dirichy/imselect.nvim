@@ -1,5 +1,5 @@
 local M = {}
-local inspecter = require("imselect.inspecter")
+local strategy = require("imselect.strategy.init")
 local system = vim.uv.os_uname().sysname
 local util = require("imselect.util")
 local cur_state
@@ -28,13 +28,14 @@ local inspecters = {}
 ---@param fn function
 function M.set_inspecter(buffer, fn)
 	inspecters[buffer] = fn
+	return true
 end
 --- to determine whether to enable im
 --- this function will be called rapidly so it can't be too heavy.
 --- @return boolean
 function M.inspect()
 	local buffer = vim.api.nvim_win_get_buf(0)
-	return inspecters[buffer]()
+	return inspecters[buffer](buffer)
 end
 
 local function inspect_changed()
@@ -97,14 +98,14 @@ M.setup = util.once(function(opts)
 			error("Imselect don't support " .. system)
 		end
 	end
-	inspecter.apply(vim.api.nvim_win_get_buf(0))
+	strategy.apply(vim.api.nvim_win_get_buf(0))
 	cur_state = M.driver.is_active() and im_state.none_ascii or im_state.perm_ascii
 	prev_cond = M.inspect()
 	vim.api.nvim_create_autocmd({ "BufEnter" }, {
 		callback = function(event)
 			local buffer = event.buf
 			if not inspecters[buffer] then
-				inspecter.apply(buffer)
+				strategy.apply(buffer)
 			end
 		end,
 	})
