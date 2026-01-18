@@ -2,17 +2,15 @@
 ---@alias Imselect.Inspecter fun(buffer:number):boolean
 ---@class Imselect.Strategy
 ---@field priority number will try every strategy from high priority to low priority
----@field apply (fun(buffer:number):boolean)? this function should set a inspecter for a buffer, return true for success, false for failure. If this filed is nil, will simply set inspecter of strategy as inspecter for the buffer.
+---@field apply (fun(buffer:number):boolean)| nil this function should set a inspecter for a buffer, return true for success, false for failure. If this filed is nil, will simply set inspecter of strategy as inspecter for the buffer.
 local M = {}
---- setup inspecter
----@param opts table
----@return Imselect.Strategy
-function M.setup(opts) end
+---@type (fun(opts:table):Imselect.Strategy)|nil
+M.setup = nil
 
---- Try to apply inspecter on buffer
----@param buffer number
----@return boolean Return true if success, false if not success.
-function M.apply(buffer) end
+-- - Try to apply inspecter on buffer
+-- -@param buffer number
+-- -@return boolean Return true if success, false if not success.
+M.apply = nil
 
 --- judge if the inspecter should be used
 ---@param buffer number

@@ -1,3 +1,4 @@
+---This strategy is to select im in latex file, smartly disable im in math environment.
 ---@type Imselect.Strategy
 local M = { priority = 100 }
 local default_opts = { filetype = { "tex", "latex" } }

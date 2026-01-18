@@ -1,3 +1,4 @@
+---The default strategy, will disable im in normal mode
 ---@type Imselect.Strategy
 local M = { priority = 0 }
 local default_opts = {

@@ -1,5 +1,8 @@
 local M = {}
 M.strategy = { require("imselect.strategy.nvimtex").setup({}), require("imselect.strategy.default").setup({}) }
+--- will apply all strategy from high priority to low priority on a buffer
+---@param buffer number
+---@return boolean
 function M.apply(buffer)
 	for _, strtgy in ipairs(M.strategy) do
 		if
@@ -9,6 +12,7 @@ function M.apply(buffer)
 			return true
 		end
 	end
+	return false
 end
 --- add strategy
 ---@param new_strategy Imselect.Strategy
