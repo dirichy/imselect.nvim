@@ -7,9 +7,12 @@ function M.active() end
 --- disable im
 --- @return boolean
 function M.disable() end
---- judge if im active
---- @return boolean
-function M.is_active() end
+
+---judge if im is active
+---@param callback nil if set, will run async and call callback with the result
+---@return boolean
+---@overload fun(callback:fun(obj:boolean)):vim.SystemObj
+function M.is_active(callback) end
 
 --- setup driver
 ---@param opts table

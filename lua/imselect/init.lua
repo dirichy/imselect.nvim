@@ -110,7 +110,10 @@ M.setup = util.once(function(opts)
 		end
 	end
 	strategy.apply(vim.api.nvim_win_get_buf(0))
-	cur_state = M.driver.is_active() and im_state.none_ascii or im_state.perm_ascii
+	M.driver.is_active(function(result)
+		cur_state = result and im_state.none_ascii or im_state.perm_ascii
+		vim.schedule(M.update)
+	end)
 	prev_cond = M.inspect()
 	vim.api.nvim_create_autocmd({ "BufEnter" }, {
 		callback = function(event)

@@ -19,12 +19,22 @@ end
 M.disable = function()
 	vim.system({ cmd, im_table.en }):wait()
 end
-M.is_active = function()
-	local im = vim.system({ cmd }):wait().stdout
-	if not im then
-		return false
+M.is_active = function(callback)
+	if not callback then
+		local im = vim.system({ cmd }):wait().stdout
+		if not im then
+			return false
+		end
+		im = im:gsub("%s+", "")
+		return im_table[im] == "active"
 	end
-	im = im:gsub("%s+", "")
-	return im_table[im] == "active"
+	return vim.system({ cmd }, {}, function(obj)
+		local im = vim.system({ cmd }):wait().stdout
+		if not im then
+			return callback(false)
+		end
+		im = im:gsub("%s+", "")
+		return callback(im_table[im] == "active")
+	end)
 end
 return M
