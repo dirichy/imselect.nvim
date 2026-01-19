@@ -65,11 +65,12 @@ local function if_user_changed_im()
 	return actual_state ~= state_if_user_not_change_im, actual_state
 end
 
-M.update = function()
+M.update = function(force)
 	if not vim.g.imselect_enabled then
 		return
 	end
 	local flag, new_state = inspect_changed()
+	flag = flag or force
 	if not flag then
 		return
 	end
@@ -112,7 +113,9 @@ M.setup = util.once(function(opts)
 	strategy.apply(vim.api.nvim_win_get_buf(0))
 	M.driver.is_active(function(result)
 		cur_state = result and im_state.none_ascii or im_state.perm_ascii
-		vim.schedule(M.update)
+		vim.schedule(function()
+			M.update(true)
+		end)
 	end)
 	prev_cond = M.inspect()
 	vim.api.nvim_create_autocmd({ "BufEnter" }, {
