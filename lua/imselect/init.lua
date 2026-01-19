@@ -126,17 +126,17 @@ M.setup = util.once(function(opts)
 			end
 		end,
 	})
-	vim.api.nvim_create_autocmd({ "ModeChanged" }, {
+	vim.api.nvim_create_autocmd({ "ModeChanged", "CursorMovedI" }, {
 		callback = function()
 			vim.schedule(function()
 				M.update()
 			end)
 		end,
 	})
-	vim.api.nvim_create_autocmd({ "CursorMovedI" }, {
+	vim.api.nvim_create_autocmd({ "FocusGained" }, {
 		callback = function()
 			vim.schedule(function()
-				M.update()
+				M.update(true)
 			end)
 		end,
 	})
