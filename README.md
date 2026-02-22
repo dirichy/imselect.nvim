@@ -1,0 +1,17 @@
+This plugin is to switch im autometically in neovim. 
+# features
+## force ascii mode in normal mode
+## multi driver.
+including fcitx, macism, neovide. and user can provide thier own driver, too. 
+## custom strategy. 
+beside neovim mode, you can provide any function to judge if we should use ascii mode. 
+for example, I implemented a features to force ascii mode in `latex` math mode with [nvimtex.nvim](https://github.com/dirichy/nvimtex.nvim).
+# install 
+you can install with `lazy.nvim` or other manager. 
+```lua
+	{
+		"dirichy/imselect.nvim",
+		config = true,
+	},
+
+```
