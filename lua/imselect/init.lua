@@ -135,9 +135,21 @@ M.setup = util.once(function(opts)
 	})
 	vim.api.nvim_create_autocmd({ "FocusGained" }, {
 		callback = function()
-			vim.schedule(function()
-				M.update(true)
-			end)
+			local state = M.driver.is_active()
+			if not state and cur_state == im_state.temp_ascii then
+				cur_state = im_state.perm_ascii
+			else
+				vim.schedule(function()
+					M.update(true)
+				end)
+			end
+		end,
+	})
+	vim.api.nvim_create_autocmd("FocusLost", {
+		callback = function()
+			if cur_state == im_state.temp_ascii then
+				M.driver.active()
+			end
 		end,
 	})
 
