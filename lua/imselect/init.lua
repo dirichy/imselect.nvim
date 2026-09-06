@@ -21,6 +21,7 @@ local default_opts = {
 			},
 		},
 	},
+	focus_event = false,
 }
 
 local im_state = {
@@ -133,25 +134,27 @@ M.setup = util.once(function(opts)
 			end)
 		end,
 	})
-	vim.api.nvim_create_autocmd({ "FocusGained" }, {
-		callback = function()
-			local state = M.driver.is_active()
-			if not state and cur_state == im_state.temp_ascii then
-				cur_state = im_state.perm_ascii
-			else
-				vim.schedule(function()
-					M.update(true)
-				end)
-			end
-		end,
-	})
-	vim.api.nvim_create_autocmd("FocusLost", {
-		callback = function()
-			if cur_state == im_state.temp_ascii then
-				M.driver.active()
-			end
-		end,
-	})
+	if opts.focus_event then
+		vim.api.nvim_create_autocmd({ "FocusGained" }, {
+			callback = function()
+				local state = M.driver.is_active()
+				if not state and cur_state == im_state.temp_ascii then
+					cur_state = im_state.perm_ascii
+				else
+					vim.schedule(function()
+						M.update(true)
+					end)
+				end
+			end,
+		})
+		vim.api.nvim_create_autocmd("FocusLost", {
+			callback = function()
+				if cur_state == im_state.temp_ascii then
+					M.driver.active()
+				end
+			end,
+		})
+	end
 
 	vim.api.nvim_create_autocmd({ "User" }, {
 		pattern = { "LuasnipInsertNodeEnter", "LuasnipInsertNodeLeave" },
