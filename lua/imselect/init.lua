@@ -46,7 +46,7 @@ end
 --- @return boolean
 function M.inspect()
 	local buffer = vim.api.nvim_win_get_buf(0)
-	return inspecters[buffer](buffer)
+	return inspecters[buffer] and inspecters[buffer](buffer)
 end
 
 local function inspect_changed()
