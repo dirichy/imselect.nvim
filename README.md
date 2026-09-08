@@ -17,10 +17,11 @@ the top of that file if you do not use fcitx5. Inside tmux, enable passthrough:
 ```tmux
 set -g allow-passthrough on
 ```
-When using this driver from SSH, configure imselect to use `kitty` for that
-session; inside remote tmux, `$TERM` is usually `tmux-256color`.
+When running over SSH, imselect automatically uses the `kitty` driver if
+`$TERMINFO` or the current terminfo is kitty. Inside tmux it can also check
+tmux's client terminal name, so it still works when `$TERM` is `tmux-256color`.
 The driver sends OSC with `nvim_ui_send()` like Neovim's OSC52 provider. If your
-tmux path needs explicit passthrough wrapping, use:
+tmux path needs explicit passthrough wrapping outside of auto SSH detection, use:
 ```lua
 require("imselect").setup({
   default_driver = { Linux = "kitty", Darwin = "kitty" },

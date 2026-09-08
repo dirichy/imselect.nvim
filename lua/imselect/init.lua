@@ -8,6 +8,7 @@ local default_opts = {
 	default_driver = {
 		Darwin = "fcitx",
 		Linux = "fcitx",
+		ssh = "kitty",
 	},
 	strategy = {
 		strategy = { require("imselect.strategy.nvimtex"), require("imselect.strategy.default") },
@@ -16,7 +17,7 @@ local default_opts = {
 		},
 	},
 	focus_event = false,
-	enable_in_ssh = false,
+	enable_in_ssh = true,
 }
 
 ---@type table<number,function>
@@ -82,8 +83,14 @@ M.setup = util.once(function(opts)
 	opts = opts or {}
 	opts = vim.tbl_deep_extend("force", default_opts, opts)
 	local driver_name = opts.default_driver[system]
-	if util.is_ssh() and not opts.enable_in_ssh and driver_name ~= "kitty" then
-		return
+	if util.is_ssh() then
+		if opts.enable_in_ssh then
+			driver_name = opts.default_driver.ssh
+			opts.enable_in_ssh = true
+			opts.kitty = vim.tbl_deep_extend("force", { tmux_passthrough = true }, opts.kitty or {})
+		else
+			return
+		end
 	end
 	strategy.setup(opts.strategy or {})
 	if vim.g.neovide then
@@ -94,7 +101,7 @@ M.setup = util.once(function(opts)
 			---@type Imselect.Driver
 			M.driver = util.with_restore(require("imselect.driver." .. driver_name).setup(opts[driver_name] or {}))
 		else
-			error("Imselect don't support " .. system)
+			vim.notify("Imselect don't support " .. system, vim.log.levels.WARN)
 		end
 	end
 	apply_buffer_strategy(vim.api.nvim_win_get_buf(0))
