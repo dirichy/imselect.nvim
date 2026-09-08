@@ -13,11 +13,6 @@ local default_opts = {
 		strategy = { require("imselect.strategy.nvimtex"), require("imselect.strategy.default") },
 		strategy_provider = {
 			nvimtex = { filetype = { "tex", "latex" } },
-			default = {
-				inspecter = function()
-					return true
-				end,
-			},
 		},
 	},
 	focus_event = false,

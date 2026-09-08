@@ -1,6 +1,6 @@
 local M = {}
 function M.is_ssh()
-	return vim.env.SSH_TTY
+	return vim.env.SSH_TTY or vim.env.SSH_CONNECTION or vim.env.SSH_CLIENT
 end
 
 local executable_table = {
