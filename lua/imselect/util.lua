@@ -44,4 +44,34 @@ function M.once(fn)
 		end
 	end
 end
+
+function M.with_restore(driver)
+	if driver.temp_ascii and driver.restore then
+		return driver
+	end
+
+	local saved_state = nil
+	driver.temp_ascii = function()
+		if saved_state ~= nil then
+			return
+		end
+		saved_state = driver.is_active()
+		if saved_state then
+			driver.disable()
+		end
+	end
+	driver.restore = function()
+		if saved_state == nil then
+			return
+		end
+		if saved_state then
+			driver.active()
+		else
+			driver.disable()
+		end
+		saved_state = nil
+	end
+	return driver
+end
+
 return M

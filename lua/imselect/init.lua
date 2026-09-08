@@ -2,7 +2,6 @@ local M = {}
 local strategy = require("imselect.strategy.init")
 local system = vim.uv.os_uname().sysname
 local util = require("imselect.util")
-local cur_state
 local prev_cond
 vim.g.imselect_enabled = true
 local default_opts = {
@@ -22,15 +21,7 @@ local default_opts = {
 		},
 	},
 	focus_event = false,
-}
-
-local im_state = {
-	-- english no matter what cirrumstance
-	perm_ascii = 0,
-	-- users use another (like chinese), but nvim state determines the im should be english (like in normal mode of nvim).
-	temp_ascii = 1,
-	-- im is not english actually now.
-	none_ascii = 2,
+	enable_in_ssh = false,
 }
 
 ---@type table<number,function>
@@ -59,72 +50,74 @@ local function inspect_changed()
 	return true, cur_cond
 end
 
-local function if_user_changed_im()
-	-- judge if the user changes the im mamually.
-	local actual_state = M.driver.is_active()
-	local state_if_user_not_change_im = cur_state == im_state.none_ascii
-	return actual_state ~= state_if_user_not_change_im, actual_state
+local function apply_buffer_strategy(buffer)
+	inspecters[buffer] = nil
+	strategy.apply(buffer)
+end
+
+local function update_driver(force)
+	local flag, new_state
+	if force then
+		flag = true
+		new_state = M.inspect()
+		prev_cond = new_state
+	else
+		flag, new_state = inspect_changed()
+	end
+	if not flag then
+		return
+	end
+
+	if new_state then
+		M.driver.restore()
+	else
+		M.driver.temp_ascii()
+	end
 end
 
 M.update = function(force)
 	if not vim.g.imselect_enabled then
 		return
 	end
-	local flag, new_state = inspect_changed()
-	flag = flag or force
-	if not flag then
-		return
-	end
-	local user_changed_im, user_change_state = if_user_changed_im()
-	if user_changed_im then
-		cur_state = user_change_state and im_state.none_ascii or im_state.perm_ascii
-	end
 
-	if new_state then
-		if cur_state == im_state.temp_ascii then
-			M.driver.active()
-			cur_state = im_state.none_ascii
-		end
-	else
-		if cur_state == im_state.none_ascii then
-			M.driver.disable()
-			cur_state = im_state.temp_ascii
-		end
-	end
+	update_driver(force)
 end
 
 M.setup = util.once(function(opts)
+	opts = opts or {}
 	opts = vim.tbl_deep_extend("force", default_opts, opts)
-	if util.is_ssh() then
+	local driver_name = opts.default_driver[system]
+	if util.is_ssh() and not opts.enable_in_ssh and driver_name ~= "kitty" then
 		return
 	end
+	strategy.setup(opts.strategy or {})
 	if vim.g.neovide then
 		---@type Imselect.Driver
-		M.driver = require("imselect.driver.neovide").setup(opts.neovide or {})
+		M.driver = util.with_restore(require("imselect.driver.neovide").setup(opts.neovide or {}))
 	else
-		if opts.default_driver[system] then
+		if driver_name then
 			---@type Imselect.Driver
-			M.driver = require("imselect.driver." .. opts.default_driver[system]).setup(
-				opts[opts.default_driver[system]] or {}
-			)
+			M.driver = util.with_restore(require("imselect.driver." .. driver_name).setup(opts[driver_name] or {}))
 		else
 			error("Imselect don't support " .. system)
 		end
 	end
-	strategy.apply(vim.api.nvim_win_get_buf(0))
-	M.driver.is_active(function(result)
-		cur_state = result and im_state.none_ascii or im_state.perm_ascii
-		vim.schedule(function()
-			M.update(true)
-		end)
-	end)
-	prev_cond = M.inspect()
+	apply_buffer_strategy(vim.api.nvim_win_get_buf(0))
+	M.update(true)
 	vim.api.nvim_create_autocmd({ "BufEnter" }, {
 		callback = function(event)
 			local buffer = event.buf
 			if not inspecters[buffer] then
 				strategy.apply(buffer)
 			end
+		end,
+	})
+	vim.api.nvim_create_autocmd({ "FileType" }, {
+		callback = function(event)
+			apply_buffer_strategy(event.buf)
+			vim.schedule(function()
+				M.update(true)
+			end)
 		end,
 	})
 	vim.api.nvim_create_autocmd({ "ModeChanged", "CursorMovedI" }, {
@@ -137,21 +130,14 @@ M.setup = util.once(function(opts)
 	if opts.focus_event then
 		vim.api.nvim_create_autocmd({ "FocusGained" }, {
 			callback = function()
-				local state = M.driver.is_active()
-				if not state and cur_state == im_state.temp_ascii then
-					cur_state = im_state.perm_ascii
-				else
-					vim.schedule(function()
-						M.update(true)
-					end)
-				end
+				vim.schedule(function()
+					M.update(true)
+				end)
 			end,
 		})
 		vim.api.nvim_create_autocmd("FocusLost", {
 			callback = function()
-				if cur_state == im_state.temp_ascii then
-					M.driver.active()
-				end
+				M.driver.restore()
 			end,
 		})
 	end

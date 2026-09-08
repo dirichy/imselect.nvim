@@ -1,14 +1,19 @@
 ---@meta
 ---@class Imselect.Driver
 local M = {}
---- active im
+--- temporarily enter ASCII input mode
+function M.temp_ascii() end
+--- restore input method state before temp_ascii()
+function M.restore() end
+
+--- legacy: active im
 --- @return boolean
 function M.active() end
---- disable im
+--- legacy: disable im
 --- @return boolean
 function M.disable() end
 
----judge if im is active
+--- legacy: judge if im is active
 ---@param callback nil if set, will run async and call callback with the result
 ---@return boolean
 ---@overload fun(callback:fun(obj:boolean)):vim.SystemObj
