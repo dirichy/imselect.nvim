@@ -1,10 +1,11 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 
-require("imselect.util").find_executable = function()
+local function find_executable()
 	return "macism"
 end
+require("imselect.util").find_executable = find_executable
 local commands = {}
-vim.system = function(cmd)
+local function system(cmd)
 	commands[#commands + 1] = cmd
 	return {
 		wait = function()
@@ -12,6 +13,7 @@ vim.system = function(cmd)
 		end,
 	}
 end
+vim.system = system
 
 local driver = require("imselect.driver.macism").setup({})
 driver.active()

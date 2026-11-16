@@ -5,9 +5,10 @@ vim.uv.os_uname = function()
 	return { sysname = system }
 end
 local available = {}
-vim.fn.executable = function(cmd)
+local function executable(cmd)
 	return available[cmd] and 1 or 0
 end
+vim.fn.executable = executable
 local util = require("imselect.util")
 
 available["fcitx-remote"] = true
