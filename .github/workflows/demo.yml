@@ -23,12 +23,19 @@ jobs:
       - uses: actions/checkout@v4.2.2
         with:
           persist-credentials: false
+      - name: Check out pinned color theme
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: folke/tokyonight.nvim
+          ref: cdc07ac78467a233fd62c493de29a17e0cf2b2b6
+          path: .dev/tokyonight.nvim
+          persist-credentials: false
       - name: Install virtual desktop and input method
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            xvfb dbus-x11 xterm xdotool screenkey ffmpeg fontconfig fonts-dejavu-core \
-            fonts-noto-cjk fcitx5 fcitx5-module-xorg fcitx5-rime rime-data-luna-pinyin
+            xvfb dbus-x11 xterm xdotool screenkey ffmpeg imagemagick fontconfig fonts-dejavu-core \
+            fonts-noto-core fonts-noto-cjk fcitx5 fcitx5-module-xorg fcitx5-rime rime-data-luna-pinyin
       - name: Install pinned Neovim
         run: |
           curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" \

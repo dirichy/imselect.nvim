@@ -1,10 +1,13 @@
 # Real input method demo / 真实输入法演示
 
-Run from the repository root:
+Prepare the pinned color theme once, then run from the repository root:
 
-在项目根目录运行：
+首次准备固定版本的配色主题，然后在项目根目录运行：
 
 ```sh
+mkdir -p .dev
+git clone https://github.com/folke/tokyonight.nvim .dev/tokyonight.nvim
+git -C .dev/tokyonight.nvim checkout cdc07ac78467a233fd62c493de29a17e0cf2b2b6
 python3 demos/record.py
 ```
 
@@ -22,11 +25,11 @@ software. Install missing dependencies yourself when prompted.
 
 Dependencies: Python 3, Neovim, Xvfb, D-Bus, xterm, xdotool, desktop Screenkey, fcitx5 with XIM and
 classic UI modules, fcitx5-rime, Rime luna-pinyin schema data, FFmpeg/ffprobe,
-Fontconfig, and Noto CJK fonts. The terminal uses the system monospace font;
+ImageMagick (`convert`), Fontconfig, Noto Sans, and Noto CJK fonts. The terminal uses the system monospace font;
 the actual selected font is recorded in `verification.json`.
 
 依赖包括 Python 3、Neovim、Xvfb、D-Bus、xterm、xdotool、桌面版 Screenkey、带 XIM 和经典界面的
-fcitx5、fcitx5-rime、Rime 朙月拼音方案数据、FFmpeg/ffprobe、Fontconfig 和 Noto CJK
+fcitx5、fcitx5-rime、Rime 朙月拼音方案数据、FFmpeg/ffprobe、ImageMagick（`convert`）、Fontconfig、Noto Sans 和 Noto CJK
 字体。终端使用系统等宽字体，实际匹配结果记录在 `verification.json` 中。
 
 For Ubuntu 24.04 package names, see
@@ -36,6 +39,18 @@ to be pixel-identical across distributions or runner-image updates.
 
 Ubuntu 24.04 的包名见上述 workflow。Neovim 固定为 v0.12.6 并校验 SHA-256；系统包
 仍会更新，因此不同发行版或 runner 镜像更新后的画面不保证逐像素一致。
+
+The editor uses TokyoNight Night. After capture, FFmpeg adds a rounded window,
+colored title-bar buttons, padding, and the same gradient background used by the
+VHS demos. The entire desktop frame is retained, including the real candidate
+popup and desktop Screenkey. Decoration does not change the observed interaction.
+The background is copied from
+[flash-any.nvim](https://github.com/dirichy/flash-any.nvim/tree/433b7fe3c197e757492f3015693bbf7096423939/demos/common),
+with its [MIT license](backdrop.LICENSE).
+
+编辑器使用 TokyoNight Night；录制后通过 FFmpeg 合成圆角窗口、彩色标题栏按钮、
+内边距，以及之前 VHS 使用的渐变背景。完整保留原始桌面画面，包括真实候选框和
+桌面 Screenkey；装饰不改变交互验证。背景沿用上述 flash-any.nvim 素材，保留 MIT 许可证。
 
 The recording verifies normal-mode ASCII, IME restoration on Insert, uncommitted
 pinyin followed by committed Chinese, Escape back to ASCII, normal cursor
@@ -51,8 +66,8 @@ Outputs are rebuilt in `demos/output/`:
 
 产物统一生成到 `demos/output/`：
 
-- `demo.mp4`: H.264, 1280×800, 30 fps.
-- `demo.gif`: 960×600, 20 fps, generated from the MP4.
+- `demo.mp4`: H.264, 1424×824, 30 fps (1280×640 desktop plus decoration).
+- `demo.gif`: 1280×741, 20 fps, generated from the MP4.
 - `candidates.png` / `final.png`: key frames extracted from the same recording.
 - `verification.json`: phase observations, versions, media properties, and
   `verified: true` only after all checks and conversions succeed.

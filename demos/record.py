@@ -14,15 +14,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "demos/output"
 OUTPUT.mkdir(parents=True, exist_ok=True)
-WIDTH, HEIGHT, FPS = 1280, 800, 30
+WIDTH, HEIGHT, FPS = 1280, 640, 30
 SIZE = f"{WIDTH}x{HEIGHT}"
 FFMPEG = ("ffmpeg", "-y", "-loglevel", "error")
 KEY_TIMEOUT = 1.5
+MARGIN, PADDING, TITLEBAR, RADIUS = 56, 16, 40, 24
+CARD_WIDTH = WIDTH + PADDING * 2
+CARD_HEIGHT = HEIGHT + PADDING * 2 + TITLEBAR
+CANVAS_WIDTH = CARD_WIDTH + MARGIN * 2
+CANVAS_HEIGHT = CARD_HEIGHT + MARGIN * 2
 
 
-def run(*args, check=True):
+def run(*args, check=True, timeout=15):
     result = subprocess.run(
-        args, check=False, text=True, capture_output=True, timeout=15
+        args, check=False, text=True, capture_output=True, timeout=timeout
     )
     if check and result.returncode:
         raise RuntimeError(f"{args!r} failed: {result.stderr}")
@@ -52,12 +57,17 @@ if len(sys.argv) == 1:
         "ffprobe",
         "fc-match",
         "screenkey",
+        "convert",
     )
     missing = [tool for tool in required if not shutil.which(tool)]
     if missing:
         sys.exit("Please install: " + ", ".join(missing))
     if not Path("/usr/share/rime-data/luna_pinyin_simp.schema.yaml").is_file():
         sys.exit("Please install the Rime luna-pinyin schema data")
+    if not (ROOT / ".dev/tokyonight.nvim/lua/tokyonight/init.lua").is_file():
+        sys.exit(
+            "Please clone folke/tokyonight.nvim into .dev/tokyonight.nvim; see demos/README.md"
+        )
     (ROOT / ".dev").mkdir(exist_ok=True)
     session = Path(tempfile.mkdtemp(prefix="imselect-demo-", dir=ROOT / ".dev"))
     (OUTPUT / "verification.json").write_text(
@@ -237,10 +247,14 @@ try:
         "20",
         "-geometry",
         "80x24+0+0",
+        "-bw",
+        "0",
+        "-b",
+        "0",
         "-bg",
-        "#141821",
+        "#1a1b26",
         "-fg",
-        "#e6e6e6",
+        "#c0caf5",
         "-xrm",
         "XTerm*inputMethod: fcitx",
         "-e",
@@ -287,7 +301,7 @@ try:
         "--position",
         "fixed",
         "--geometry",
-        f"{WIDTH - 160}x64+80+{HEIGHT - 170}",
+        f"480x64+{(WIDTH - 480) // 2}+{HEIGHT - 170}",
         "--key-mode",
         "translated",
         "--timeout",
@@ -295,9 +309,9 @@ try:
         "--font",
         "Sans Bold",
         "--font-color",
-        "#e6e6e6",
+        "#c0caf5",
         "--bg-color",
-        "#252b36",
+        "#24283b",
         "--opacity",
         "1",
     )
@@ -337,7 +351,7 @@ try:
         "yuv420p",
         "-movflags",
         "+faststart",
-        str(OUTPUT / "demo.mp4"),
+        str(session / "raw.mp4"),
         stdin=subprocess.PIPE,
     )
     record_started = time.monotonic()
@@ -375,6 +389,56 @@ try:
     time.sleep(2)
     recorder.communicate(b"q\n", timeout=10)
     assert recorder.returncode == 0, "recording failed"
+    # Decorate the full desktop capture without cropping candidate windows or keys.
+    frame = session / "frame.svg"
+    frame.write_text(f'''<svg xmlns="http://www.w3.org/2000/svg"
+        width="{CANVAS_WIDTH}" height="{CANVAS_HEIGHT}">
+      <rect x="{MARGIN}" y="{MARGIN + 10}" width="{CARD_WIDTH}"
+        height="{CARD_HEIGHT}" rx="{RADIUS}" fill="#000000" opacity="0.24"/>
+      <rect x="{MARGIN}" y="{MARGIN}" width="{CARD_WIDTH}"
+        height="{CARD_HEIGHT}" rx="{RADIUS}" fill="#1a1b26"
+        stroke="#414868" stroke-width="1"/>
+      <circle cx="{MARGIN + 24}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#ff5f57"/>
+      <circle cx="{MARGIN + 44}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#ffbd2e"/>
+      <circle cx="{MARGIN + 64}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#28c840"/>
+      <text x="{CANVAS_WIDTH // 2}" y="{MARGIN + 26}" text-anchor="middle"
+        font-family="Noto Sans" font-size="15" fill="#a9b1d6">imselect.nvim · Neovim</text>
+    </svg>''')
+    run("convert", "-background", "none", str(frame), str(session / "frame.png"))
+    run(
+        *FFMPEG,
+        "-i",
+        str(session / "raw.mp4"),
+        "-loop",
+        "1",
+        "-framerate",
+        str(FPS),
+        "-i",
+        str(ROOT / "demos/backdrop.png"),
+        "-loop",
+        "1",
+        "-framerate",
+        str(FPS),
+        "-i",
+        str(session / "frame.png"),
+        "-filter_complex",
+        f"[1:v]scale={CANVAS_WIDTH}:{CANVAS_HEIGHT}[bg];"
+        "[bg][2:v]overlay=0:0:shortest=1[frame];"
+        f"[frame][0:v]overlay={MARGIN + PADDING}:{MARGIN + TITLEBAR + PADDING}:shortest=1,format=yuv420p[out]",
+        "-map",
+        "[out]",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "18",
+        "-movflags",
+        "+faststart",
+        str(OUTPUT / "demo.mp4"),
+        timeout=90,
+    )
     evidence["media"] = json.loads(
         run(
             "ffprobe",
@@ -393,7 +457,9 @@ try:
         stream["width"],
         stream["height"],
         stream["r_frame_rate"],
-    ) == ("h264", WIDTH, HEIGHT, f"{FPS}/1"), f"Unexpected video stream: {stream}"
+    ) == ("h264", CANVAS_WIDTH, CANVAS_HEIGHT, f"{FPS}/1"), (
+        f"Unexpected video stream: {stream}"
+    )
     assert float(evidence["media"]["format"]["duration"]) > 5, "Recording is too short"
     for name, marker in (
         ("candidates.png", "uncommitted pinyin"),
@@ -404,9 +470,9 @@ try:
             next(
                 item["seconds"] for item in evidence["phases"] if item["name"] == marker
             )
-            + 0.2,
+            + (1.0 if marker == "final normal" else 0.2),
         )
-    filters = "fps=20,scale=960:-1:flags=lanczos"
+    filters = "fps=20,scale=1280:-1:flags=lanczos"
     palette = str(session / "palette.png")
     video = str(OUTPUT / "demo.mp4")
     run(
@@ -420,6 +486,7 @@ try:
         "-threads",
         "1",
         palette,
+        timeout=90,
     )
     run(
         *FFMPEG,
@@ -433,6 +500,7 @@ try:
         "-loop",
         "0",
         str(OUTPUT / "demo.gif"),
+        timeout=90,
     )
     (OUTPUT / "README.local.md").write_text(
         "# imselect.nvim demo\n\n![Demo](demo.gif)\n\n[MP4](demo.mp4) · [Verification](verification.json)\n"

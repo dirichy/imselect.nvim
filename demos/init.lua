@@ -1,17 +1,23 @@
 local root = assert(vim.env.IMSELECT_DEMO_ROOT)
 local session = assert(vim.env.IMSELECT_DEMO_SESSION)
 vim.opt.runtimepath:prepend(root)
+vim.opt.runtimepath:prepend(root .. "/.dev/tokyonight.nvim")
+vim.opt.termguicolors = true
+require("tokyonight").setup({ style = "night" })
+vim.cmd.colorscheme("tokyonight-night")
 vim.opt.swapfile = false
 vim.opt.laststatus = 2
-vim.opt.statusline = " imselect.nvim | i / A: restore IME | Esc: ASCII %=%{mode()} "
-vim.opt.showmode = true
-vim.opt.termguicolors = true
+vim.opt.statusline = " imselect.nvim %=%{mode() == 'i' ? 'INSERT' : 'NORMAL'} "
+vim.opt.showmode = false
 vim.opt.guicursor = ""
-vim.cmd("highlight Normal guibg=#141821 guifg=#e6e6e6")
+vim.opt.cursorline = true
+vim.opt.fillchars = { eob = " " }
+vim.cmd("syntax enable")
+vim.bo.filetype = "markdown"
 vim.api.nvim_buf_set_lines(0, 0, -1, false, {
-	"imselect.nvim: Chinese in Insert, ASCII in Normal",
-	"i: nihao + Space. Esc: navigate immediately with 0l.",
-	"A: Chinese input returns; type shijie + Space.",
+	"# imselect.nvim",
+	"Insert: `i` → nihao + Space. `Esc` → ASCII navigation with 0l.",
+	"Restore: `A` → shijie + Space. Your input method returns.",
 	"",
 })
 vim.api.nvim_win_set_cursor(0, { 4, 0 })
