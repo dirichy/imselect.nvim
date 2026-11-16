@@ -68,6 +68,8 @@ if len(sys.argv) == 1:
         sys.exit(
             "Please clone folke/tokyonight.nvim into .dev/tokyonight.nvim; see demos/README.md"
         )
+    if not (ROOT / ".dev/latex/parser/latex.so").is_file():
+        sys.exit("Please build the pinned LaTeX parser; see demos/README.md")
     (ROOT / ".dev").mkdir(exist_ok=True)
     session = Path(tempfile.mkdtemp(prefix="imselect-demo-", dir=ROOT / ".dev"))
     (OUTPUT / "verification.json").write_text(
@@ -113,6 +115,7 @@ if len(sys.argv) == 1:
             stderr=log,
         )
     if result.returncode:
+        print((session / "dbus.log").read_text(), file=sys.stderr)
         print(
             f"Recording failed; inspect {OUTPUT / 'verification.json'} and {session}",
             file=sys.stderr,
@@ -146,6 +149,10 @@ rime = session / "data/fcitx5/rime"
 rime.mkdir(parents=True)
 (rime / "default.custom.yaml").write_text(
     "patch:\n  schema_list:\n    - schema: luna_pinyin_simp\n"
+)
+# Use ASCII dollars while keeping Chinese composition enabled.
+(rime / "luna_pinyin_simp.custom.yaml").write_text(
+    'patch:\n  "punctuator/half_shape/$": "$"\n'
 )
 socket = session / "nvim.sock"
 processes = []
@@ -182,11 +189,21 @@ def snapshot():
     )
 
 
-def phase(name, mode, state, text):
+def phase(name, mode, state, text, *, in_text=True, cursor=None):
     def matches():
         current = snapshot()
         active = run("fcitx5-remote").stdout.strip()
-        if current["mode"] == mode and active == state and current["lines"][3] == text:
+        evidence["last_observation"] = {"editor": current, "ime": active}
+        if (
+            current["mode"] == mode
+            and active == state
+            and current["lines"][7] == text
+            and current["in_text"] == in_text
+            and (cursor is None or current["cursor"] == cursor)
+        ):
+            assert current["parser"] == "latex", (
+                "the demo must use the real LaTeX parser"
+            )
             assert not current["error"], current["error"]
             return {
                 "name": name,
@@ -214,6 +231,22 @@ def capture(name, seconds):
 
 
 try:
+    # Check SVG rendering before starting the desktop and recording.
+    frame = session / "frame.svg"
+    frame.write_text(f'''<svg xmlns="http://www.w3.org/2000/svg"
+        width="{CANVAS_WIDTH}" height="{CANVAS_HEIGHT}">
+      <rect x="{MARGIN}" y="{MARGIN + 10}" width="{CARD_WIDTH}"
+        height="{CARD_HEIGHT}" rx="{RADIUS}" fill="#000000" opacity="0.24"/>
+      <rect x="{MARGIN}" y="{MARGIN}" width="{CARD_WIDTH}"
+        height="{CARD_HEIGHT}" rx="{RADIUS}" fill="#1a1b26"
+        stroke="#414868" stroke-width="1"/>
+      <circle cx="{MARGIN + 24}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#ff5f57"/>
+      <circle cx="{MARGIN + 44}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#ffbd2e"/>
+      <circle cx="{MARGIN + 64}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#28c840"/>
+      <text x="{CANVAS_WIDTH // 2}" y="{MARGIN + 26}" text-anchor="middle"
+        font-family="Noto Sans" font-size="15" fill="#a9b1d6">imselect.nvim · Neovim</text>
+    </svg>''')
+    run("convert", "-background", "none", str(frame), str(session / "frame.png"))
     read_fd, write_fd = os.pipe()
     start(
         "xvfb",
@@ -367,44 +400,48 @@ try:
     run("xdotool", "key", "space")
     phase("Chinese committed", "i", "2", "你好")
     time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "key", "Escape")
-    phase("Escape selects ASCII", "n", "1", "你好")
+    run("xdotool", "type", "--clearmodifiers", "--delay", "160", "$ $")
+    phase("dollar pair typed", "i", "2", "你好$ $", cursor=[8, 9])
     time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "key", "0", "l")
-    assert snapshot()["cursor"] == [4, 3], (
-        "normal commands must move across Chinese text"
+    run("xdotool", "key", "Left")
+    phase(
+        "math selects ASCII in Insert",
+        "i",
+        "1",
+        "你好$ $",
+        in_text=False,
+        cursor=[8, 8],
     )
     time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "key", "A")
-    phase("insert restores IME again", "i", "2", "你好")
+    run("xdotool", "type", "--clearmodifiers", "--delay", "160", "x + y")
+    phase("math typed in ASCII", "i", "1", "你好$ x + y$", in_text=False)
+    time.sleep(KEY_TIMEOUT + 0.2)
+    run("xdotool", "key", "Right")
+    phase("prose restores IME in Insert", "i", "2", "你好$ x + y$", cursor=[8, 14])
     time.sleep(KEY_TIMEOUT + 0.2)
     run("xdotool", "type", "--clearmodifiers", "--delay", "160", "shijie")
     time.sleep(1)
     run("xdotool", "key", "space")
-    phase("Chinese committed again", "i", "2", "你好世界")
+    phase("Chinese committed again", "i", "2", "你好$ x + y$世界")
     time.sleep(KEY_TIMEOUT + 0.2)
     run("xdotool", "key", "Escape")
-    phase("final normal", "n", "1", "你好世界")
+    phase("final normal", "n", "1", "你好$ x + y$世界")
+    syntax_start = next(
+        p for p in evidence["phases"] if p["name"] == "insert restores IME"
+    )
+    syntax_end = next(
+        p for p in evidence["phases"] if p["name"] == "prose restores IME in Insert"
+    )
+    assert not any(
+        event["event"] == "ModeChanged"
+        for event in syntax_end["editor"]["events"][
+            len(syntax_start["editor"]["events"]) :
+        ]
+    ), "syntax switching must not leave Insert mode"
     assert screenkey.poll() is None, "Screenkey stopped during recording"
     time.sleep(2)
     recorder.communicate(b"q\n", timeout=10)
     assert recorder.returncode == 0, "recording failed"
-    # Decorate the full desktop capture without cropping candidate windows or keys.
-    frame = session / "frame.svg"
-    frame.write_text(f'''<svg xmlns="http://www.w3.org/2000/svg"
-        width="{CANVAS_WIDTH}" height="{CANVAS_HEIGHT}">
-      <rect x="{MARGIN}" y="{MARGIN + 10}" width="{CARD_WIDTH}"
-        height="{CARD_HEIGHT}" rx="{RADIUS}" fill="#000000" opacity="0.24"/>
-      <rect x="{MARGIN}" y="{MARGIN}" width="{CARD_WIDTH}"
-        height="{CARD_HEIGHT}" rx="{RADIUS}" fill="#1a1b26"
-        stroke="#414868" stroke-width="1"/>
-      <circle cx="{MARGIN + 24}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#ff5f57"/>
-      <circle cx="{MARGIN + 44}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#ffbd2e"/>
-      <circle cx="{MARGIN + 64}" cy="{MARGIN + TITLEBAR // 2}" r="6" fill="#28c840"/>
-      <text x="{CANVAS_WIDTH // 2}" y="{MARGIN + 26}" text-anchor="middle"
-        font-family="Noto Sans" font-size="15" fill="#a9b1d6">imselect.nvim · Neovim</text>
-    </svg>''')
-    run("convert", "-background", "none", str(frame), str(session / "frame.png"))
     run(
         *FFMPEG,
         "-i",
@@ -463,6 +500,8 @@ try:
     assert float(evidence["media"]["format"]["duration"]) > 5, "Recording is too short"
     for name, marker in (
         ("candidates.png", "uncommitted pinyin"),
+        ("math.png", "math typed in ASCII"),
+        ("restored.png", "Chinese committed again"),
         ("final.png", "final normal"),
     ):
         capture(

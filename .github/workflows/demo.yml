@@ -30,11 +30,18 @@ jobs:
           ref: cdc07ac78467a233fd62c493de29a17e0cf2b2b6
           path: .dev/tokyonight.nvim
           persist-credentials: false
+      - name: Check out pinned LaTeX grammar
+        uses: actions/checkout@v4.2.2
+        with:
+          repository: latex-lsp/tree-sitter-latex
+          ref: fa8df448fc2c0192a8c2f8cfc97de53cb2b4ecb9
+          path: .dev/tree-sitter-latex
+          persist-credentials: false
       - name: Install virtual desktop and input method
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            xvfb dbus-x11 xterm xdotool screenkey ffmpeg imagemagick fontconfig fonts-dejavu-core \
+            build-essential xvfb dbus-x11 xterm xdotool screenkey ffmpeg imagemagick librsvg2-bin fontconfig fonts-dejavu-core \
             fonts-noto-core fonts-noto-cjk fcitx5 fcitx5-module-xorg fcitx5-rime rime-data-luna-pinyin
       - name: Install pinned Neovim
         run: |
@@ -43,6 +50,14 @@ jobs:
           echo "$NVIM_SHA256  $RUNNER_TEMP/nvim.tar.gz" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+      - name: Build pinned LaTeX parser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tree-sitter" --no-audit --no-fund tree-sitter-cli@0.26.9
+          (cd .dev/tree-sitter-latex && "$RUNNER_TEMP/tree-sitter/node_modules/.bin/tree-sitter" generate)
+          mkdir -p .dev/latex/parser
+          cc -O2 -shared -fPIC -I .dev/tree-sitter-latex/src \
+            .dev/tree-sitter-latex/src/parser.c .dev/tree-sitter-latex/src/scanner.c \
+            -o .dev/latex/parser/latex.so
       - name: Record and verify real input method interaction
         run: python3 demos/record.py
       - name: Upload verified demo
