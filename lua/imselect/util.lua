@@ -34,14 +34,14 @@ end
 ---@param fn function
 ---@return function
 function M.once(fn)
-	local called = nil
+	local called = false
+	local result
 	return function(...)
-		if called ~= nil then
-			return called
-		else
-			called = fn(...)
-			return called
+		if not called then
+			result = fn(...)
+			called = true
 		end
+		return result
 	end
 end
 
