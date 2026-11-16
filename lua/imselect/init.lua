@@ -82,28 +82,27 @@ end
 M.setup = util.once(function(opts)
 	opts = opts or {}
 	opts = vim.tbl_deep_extend("force", default_opts, opts)
-	local driver_name = opts.default_driver[system]
-	if util.is_ssh() then
-		if opts.enable_in_ssh then
-			driver_name = opts.default_driver.ssh
-			opts.enable_in_ssh = true
-			opts.kitty = vim.tbl_deep_extend("force", { tmux_passthrough = true }, opts.kitty or {})
-		else
+	local driver_name
+	if vim.g.neovide then
+		driver_name = "neovide"
+	elseif util.is_ssh() then
+		if not opts.enable_in_ssh then
 			return
 		end
+		driver_name = opts.default_driver.ssh
+		if driver_name == "kitty" then
+			opts.kitty = vim.tbl_deep_extend("force", { tmux_passthrough = true }, opts.kitty or {})
+		end
+	else
+		driver_name = opts.default_driver[system]
+	end
+	if not driver_name then
+		vim.notify("Imselect don't support " .. system, vim.log.levels.WARN)
+		return
 	end
 	strategy.setup(opts.strategy or {})
-	if vim.g.neovide then
-		---@type Imselect.Driver
-		M.driver = util.with_restore(require("imselect.driver.neovide").setup(opts.neovide or {}))
-	else
-		if driver_name then
-			---@type Imselect.Driver
-			M.driver = util.with_restore(require("imselect.driver." .. driver_name).setup(opts[driver_name] or {}))
-		else
-			vim.notify("Imselect don't support " .. system, vim.log.levels.WARN)
-		end
-	end
+	---@type Imselect.Driver
+	M.driver = util.with_restore(require("imselect.driver." .. driver_name).setup(opts[driver_name] or {}))
 	apply_buffer_strategy(vim.api.nvim_win_get_buf(0))
 	M.update(true)
 	vim.api.nvim_create_autocmd({ "BufEnter" }, {
