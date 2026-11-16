@@ -1,4 +1,15 @@
 This plugin is to switch im autometically in neovim. 
+
+## Demo / 演示
+
+![Automatic input method switching](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo.gif)
+
+Real fcitx5-rime input: Insert restores Chinese input; Escape switches to ASCII.
+真实 fcitx5-rime 输入：进入插入模式恢复中文输入，Escape 切换至英文。
+
+[HD video / 高清视频](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo.mp4)
+· [Recording instructions / 录制说明](demos/README.md)
+
 # features
 ## force ascii mode in normal mode
 ## multi driver.

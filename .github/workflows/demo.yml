@@ -1,0 +1,108 @@
+name: Demos
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      NVIM_VERSION: v0.12.6
+      NVIM_SHA256: 474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install virtual desktop and input method
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb dbus-x11 xterm xdotool screenkey ffmpeg fontconfig fonts-dejavu-core \
+            fonts-noto-cjk fcitx5 fcitx5-module-xorg fcitx5-rime rime-data-luna-pinyin
+      - name: Install pinned Neovim
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" \
+            "https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/nvim-linux-x86_64.tar.gz"
+          echo "$NVIM_SHA256  $RUNNER_TEMP/nvim.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+      - name: Record and verify real input method interaction
+        run: python3 demos/record.py
+      - name: Upload verified demo
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: demos
+          path: demos/output/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: imselect-demo-debug
+          path: |
+            demos/output/verification.json
+            .dev/imselect-demo-*/*.log
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 3
+
+  publish:
+    needs: record
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4.3.0
+        with:
+          name: demos
+          path: demos
+      - name: Verify publication inputs
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          output = Path("demos")
+          assert json.loads((output / "verification.json").read_text()).get("verified") is True
+          for name in ("demo.gif", "demo.mp4", "verification.json"):
+              assert (output / name).stat().st_size > 0, f"Missing or empty asset: {name}"
+          PY
+      - name: Replace demo release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > "$RUNNER_TEMP/demo-notes.md" <<EOF
+          Automatically recorded demos for commit $GITHUB_SHA.
+
+          Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID
+
+          These assets are replaced on each successful recording. This is not a plugin release.
+          EOF
+          assets=(demos/demo.gif demos/demo.mp4 demos/verification.json)
+          if gh release view demos --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload demos "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit demos --repo "$GITHUB_REPOSITORY" \
+              --prerelease --latest=false --notes-file "$RUNNER_TEMP/demo-notes.md"
+          else
+            gh release create demos "${assets[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title 'Demo recordings' --prerelease --latest=false \
+              --notes-file "$RUNNER_TEMP/demo-notes.md"
+          fi
+      - name: Check published README media
+        run: |
+          for media in demo.gif demo.mp4; do
+            curl --fail --silent --show-error --location --head --retry 3 \
+              "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/demos/$media" >/dev/null
+          done
