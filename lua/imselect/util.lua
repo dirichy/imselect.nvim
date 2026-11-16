@@ -17,14 +17,14 @@ function M.find_executable(cmd)
 	if executable_table[cmd] then
 		if executable_table[cmd][system] then
 			for _, path in ipairs(executable_table[cmd][system]) do
-				if vim.fn.executable(path) then
+				if vim.fn.executable(path) == 1 then
 					return path
 				end
 			end
 			error("Can't find executable " .. cmd)
 		end
 	end
-	if vim.fn.executable(cmd) then
+	if vim.fn.executable(cmd) == 1 then
 		return cmd
 	else
 		error("Can't find executable " .. cmd)
