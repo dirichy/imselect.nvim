@@ -14,10 +14,10 @@ M.setup = util.once(function(opts)
 end)
 
 M.active = function()
-	vim.system({ cmd, im_table.zh }):wait()
+	vim.system({ cmd, im_table.active }):wait()
 end
 M.disable = function()
-	vim.system({ cmd, im_table.en }):wait()
+	vim.system({ cmd, im_table.disable }):wait()
 end
 M.is_active = function(callback)
 	if not callback then
