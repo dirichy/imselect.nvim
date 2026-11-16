@@ -112,6 +112,9 @@ M.setup = util.once(function(opts)
 			if not inspecters[buffer] then
 				strategy.apply(buffer)
 			end
+			vim.schedule(function()
+				M.update()
+			end)
 		end,
 	})
 	vim.api.nvim_create_autocmd({ "FileType" }, {
