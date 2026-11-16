@@ -13,20 +13,19 @@ M.setup = util.once(function(opts)
 	return M
 end)
 M.set_state = function(state)
-	vim.system({ fcitx_remote, state and "-o" or "-c" }):wait()
+	util.run({ fcitx_remote, state and "-o" or "-c" })
 end
----@param callback nil if set, will run async and use callback for vim.system
+---@param callback? fun(state:boolean?,err:string?) Optional asynchronous query.
 ---@return boolean
----@overload fun(callback:fun(result:boolean)):vim.SystemObj
+---@overload fun(callback:fun(state:boolean?,err:string?)):vim.SystemObj
 function M.get_state(callback)
 	if not callback then
-		local output = vim.system({ fcitx_remote }):wait().stdout or ""
-		output = string.gsub(output, "%s", "")
-		return output == "2"
+		return util.run({ fcitx_remote }) == "2"
 	end
-	return vim.system({ fcitx_remote }, {}, function(result)
-		local output = result.stdout or ""
-		output = string.gsub(output, "%s", "")
+	return util.run({ fcitx_remote }, function(output, err)
+		if output == nil then
+			return callback(nil, err)
+		end
 		return callback(output == "2")
 	end)
 end

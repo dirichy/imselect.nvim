@@ -9,9 +9,9 @@ function M.temp_ascii() end
 function M.restore() end
 
 --- Alternative to temp_ascii/restore: query and set the driver's opaque state.
----@param callback? fun(state: Imselect.State?) Optional asynchronous query.
+---@param callback? fun(state: Imselect.State?, err:string?) Optional asynchronous query.
 ---@return Imselect.State
----@overload fun(callback:fun(state:Imselect.State?)):vim.SystemObj
+---@overload fun(callback:fun(state:Imselect.State?,err:string?)):vim.SystemObj
 function M.get_state(callback) end
 
 ---@param state Imselect.State

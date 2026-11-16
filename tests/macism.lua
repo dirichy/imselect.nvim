@@ -7,7 +7,8 @@ require("imselect.util").find_executable = find_executable
 local commands = {}
 local source = "user.custom.input"
 local fail = false
-local function system(cmd, _, callback)
+local function system(cmd, opts, callback)
+	assert(opts.timeout == 1000)
 	commands[#commands + 1] = cmd
 	local result = { code = fail and 1 or 0, stdout = "" }
 	if not fail then
@@ -48,8 +49,8 @@ end)
 assert(#commands == before + 1, "async queries must use their callback result without starting another process")
 fail = true
 assert(not pcall(driver.get_state))
-driver.get_state(function(state)
-	assert(state == nil)
+driver.get_state(function(state, err)
+	assert(state == nil and err:find("macism", 1, true))
 end)
 fail = false
 driver.temp_ascii()

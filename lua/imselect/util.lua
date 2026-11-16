@@ -13,6 +13,39 @@ function M.find_executable(candidates)
 	end
 	error("Can't find executable: " .. table.concat(candidates, ", "))
 end
+
+---@param args string[]
+---@param callback? nil
+---@return string Trimmed stdout; command failures raise an error.
+---@overload fun(args:string[],callback:fun(output:string?,err:string?)):vim.SystemObj
+function M.run(args, callback)
+	local function finish(result)
+		local output, err
+		if result.code ~= 0 or (result.signal or 0) ~= 0 then
+			err = ("imselect: %s failed (exit %s, signal %s): %s"):format(
+				args[1],
+				result.code,
+				result.signal or 0,
+				vim.trim(result.stderr or "")
+			)
+		else
+			output = vim.trim(result.stdout or "")
+		end
+		if callback then
+			return callback(output, err)
+		end
+		if err then
+			error(err)
+		end
+		return output
+	end
+	local opts = { timeout = 1000 }
+	if callback then
+		return vim.system(args, opts, finish)
+	end
+	return finish(vim.system(args, opts):wait())
+end
+
 --- only execute fn once
 ---@param fn function
 ---@return function

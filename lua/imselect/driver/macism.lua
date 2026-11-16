@@ -9,23 +9,18 @@ M.setup = util.once(function(opts)
 end)
 
 M.set_state = function(state)
-	local result = vim.system({ cmd, state }):wait()
-	if result.code ~= 0 then
-		error("imselect: macism could not set the input source")
-	end
+	util.run({ cmd, state })
 end
 M.get_state = function(callback)
 	if not callback then
-		local result = vim.system({ cmd }):wait()
-		local state = vim.trim(result.stdout or "")
-		if result.code ~= 0 or state == "" then
+		local state = util.run({ cmd })
+		if state == "" then
 			error("imselect: macism could not query the input source")
 		end
 		return state
 	end
-	return vim.system({ cmd }, {}, function(obj)
-		local state = vim.trim(obj.stdout or "")
-		return callback(obj.code == 0 and state ~= "" and state or nil)
+	return util.run({ cmd }, function(state, err)
+		return callback(state ~= "" and state or nil, err)
 	end)
 end
 return M

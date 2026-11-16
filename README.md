@@ -134,6 +134,19 @@ instead of a command string; each driver owns its platform-specific candidates.
 选择第一个可执行项。此 helper 现在统一接收有序列表，不再接收单个命令字符串；
 各平台的候选命令及安装路径由对应驱动管理。
 
+Use `util.run({ command, ... })` in command-based drivers to get trimmed stdout;
+it raises an error on a nonzero exit, signal, or a 1-second timeout. For async
+queries, `util.run(args, function(output, err) ... end)` returns a `vim.SystemObj`
+and passes `nil, err` to the callback on command failure. Drivers interpret the
+output as their own state; asynchronous `get_state` callbacks can also receive
+`nil, err` on command failure.
+
+外部命令驱动可用 `util.run({ command, ... })` 获取去除首尾空白的标准输出；非零退出、
+信号终止或超过 1 秒超时会报错。异步查询使用
+`util.run(args, function(output, err) ... end)`，返回 `vim.SystemObj`，命令失败时回调
+接收 `nil, err`。输出如何转为状态由驱动负责；异步 `get_state` 回调也可以接收
+`nil, err` 来识别命令失败。
+
 # install 
 you can install with `lazy.nvim` or other manager. 
 ```lua
