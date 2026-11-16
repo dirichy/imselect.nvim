@@ -11,12 +11,6 @@ local default_opts = {
 		Windows_NT = "im_select",
 		ssh = "kitty",
 	},
-	strategy = {
-		strategy = { require("imselect.strategy.nvimtex"), require("imselect.strategy.default") },
-		strategy_provider = {
-			nvimtex = { filetype = { "tex", "latex" } },
-		},
-	},
 	focus_event = false,
 	enable_in_ssh = true,
 }
@@ -125,7 +119,7 @@ M.setup = util.once(function(opts)
 			end)
 		end,
 	})
-	vim.api.nvim_create_autocmd({ "ModeChanged", "CursorMovedI" }, {
+	vim.api.nvim_create_autocmd({ "ModeChanged", "CursorMovedI", "TextChangedI" }, {
 		callback = function()
 			vim.schedule(function()
 				M.update()

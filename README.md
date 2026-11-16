@@ -108,9 +108,55 @@ require("imselect").setup({
   enable_in_ssh = true,
 })
 ```
-## custom strategy. 
-beside neovim mode, you can provide any function to judge if we should use ascii mode. 
-for example, I implemented a features to force ascii mode in `latex` math mode with [nvimtex.nvim](https://github.com/dirichy/nvimtex.nvim).
+## Syntax-aware switching / 语法感知
+
+The default strategy uses Neovim's built-in Tree-sitter API in Insert mode:
+code temporarily selects ASCII (`temp_ascii()`); strings, comments, and prose
+restore the saved input method (`restore()`). Moving between regions or editing
+text updates the classification. Normal mode still uses ASCII, and `/` / `?`
+searches restore the input method.
+
+默认策略在插入模式下通过 Neovim 原生 Tree-sitter API 判断语法：代码区临时使用
+英文（`temp_ascii()`），字符串、注释和正文恢复原输入法（`restore()`）。移动光标
+或修改文本时更新判断。普通模式仍使用英文，`/`、`?` 搜索恢复输入法。
+
+Install parsers for the languages you edit; neither pairwise.nvim nor
+nvim-treesitter is a runtime dependency, and highlighting need not be enabled.
+Without a usable parser, switching keeps its previous mode-only behavior.
+Markdown prose, inline code and code blocks are distinguished; injected languages
+use their own syntax, so a comment inside a Lua code block can still use Chinese.
+HTML/Vue text and quoted attributes are also treated as text. With a LaTeX
+parser, prose and `\text{...}` restore input; math and recognized code environments
+select ASCII. Verbatim content follows the parser's `comment` classification and
+restores input. There is no special handling for inline `\verb`.
+The separate nvimtex strategy has been removed.
+
+请为编辑的语言安装 parser；运行时不依赖 pairwise.nvim 或 nvim-treesitter，也不要求
+开启高亮。没有可用 parser 时保留原先只按模式切换的行为。Markdown 区分正文、
+行内代码和代码块；注入语言按自身语法判断，因此 Lua 代码块中的注释仍可输入中文。
+HTML/Vue 的文本和带引号的属性值也按文本处理。安装 LaTeX parser 后，正文和
+`\text{...}` 恢复输入法，数学区及已识别的代码环境使用英文。verbatim 内容沿用
+parser 的 `comment` 分类，恢复输入法；行内 `\verb` 不做特殊处理。独立的 nvimtex
+策略已移除。
+
+This is a basic node-type classification, not a complete language semantic model.
+Common string/comment nodes are text; recognized interpolation nodes are code;
+unrecognized nodes follow their nearest classified ancestor, otherwise code.
+Incomplete input follows the parser's current tree. A custom default `inspecter`
+replaces this built-in decision.
+
+这是按节点类型分类的基础版，不是完整的语言语义模型。常见字符串、注释节点属于
+文本，已识别的插值节点属于代码；未知节点向上查找最近的分类，均未命中则按代码
+处理。未完成输入的结果取决于 parser 当前的语法树；自定义默认策略的 `inspecter`
+会替换这项内置判断。
+
+## Custom strategy / 自定义策略
+
+Override `strategy.strategy_provider.default.inspecter` with a function receiving
+the buffer number. Return `true` to restore input or `false` to temporarily use ASCII.
+
+可通过 `strategy.strategy_provider.default.inspecter` 提供接收缓冲区编号的判断函数：
+返回 `true` 恢复输入法，返回 `false` 临时使用英文。
 
 ## Custom drivers / 自定义驱动
 

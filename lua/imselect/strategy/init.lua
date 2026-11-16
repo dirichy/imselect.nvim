@@ -1,5 +1,5 @@
 local M = {}
-local default_opts = { strategy = { require("imselect.strategy.nvimtex"), require("imselect.strategy.default") } }
+local default_opts = { strategy = { require("imselect.strategy.default") }, strategy_provider = {} }
 local util = require("imselect.util")
 M.setup = util.once(function(opts)
 	default_opts = vim.tbl_deep_extend("force", default_opts, opts)
