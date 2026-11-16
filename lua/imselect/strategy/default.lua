@@ -9,6 +9,7 @@ local default_opts = {
 local util = require("imselect.util")
 M.setup = util.once(function(opts)
 	default_opts = vim.tbl_deep_extend("force", default_opts, opts)
+	M.inspecter = default_opts.inspecter
 	return M
 end)
 M.inspecter = default_opts.inspecter
