@@ -9,14 +9,14 @@ Drivers are selected once during `setup()`, in this order:
 1. Neovide always uses the `neovide` driver, regardless of SSH environment variables.
 2. Other SSH sessions use `default_driver.ssh` (default: `"kitty"`). Setting
    `enable_in_ssh = false` disables imselect in these sessions only.
-3. Other sessions use `default_driver[os]`, where `os` is `Linux`, `Darwin`, etc.
+3. Other sessions use `default_driver[os]`, where `os` is `Linux`, `Darwin`, `Windows_NT`, etc.
 
 驱动在 `setup()` 时按以下顺序选择一次：
 
 1. Neovide 始终使用 `neovide` 驱动，不受 SSH 环境变量影响。
 2. 其他 SSH 会话使用 `default_driver.ssh`，默认为 `"kitty"`。
    `enable_in_ssh = false` 只在这些会话中禁用 imselect。
-3. 其余会话使用 `default_driver[os]`，其中 `os` 为 `Linux`、`Darwin` 等系统名。
+3. 其余会话使用 `default_driver[os]`，其中 `os` 为 `Linux`、`Darwin`、`Windows_NT` 等系统名。
 
 ```lua
 require("imselect").setup({
@@ -24,6 +24,32 @@ require("imselect").setup({
   enable_in_ssh = true,
 })
 ```
+
+### Windows
+
+Windows terminal sessions default to the `im_select` driver. Install
+[`im-select.exe`](https://github.com/daipeihust/im-select) and put it on `PATH`,
+or configure its full path. The default ASCII layout ID is `"1033"` (English US);
+that layout must be installed. The driver saves and restores the original layout
+ID. It does not query the Chinese/English mode inside that layout. Native Windows
+input behavior has not yet been tested for this driver.
+
+Windows 终端会话默认使用 `im_select` 驱动。安装上述 `im-select.exe` 并放入 `PATH`，
+也可以配置完整路径。默认 ASCII 布局 ID 为 `"1033"`（美式英语），需要先安装该布局。
+驱动保存并恢复原布局 ID，不查询同一布局内部的中英文模式。目前尚未实测此驱动在
+Windows 上的实际输入行为。
+
+```lua
+require("imselect").setup({
+  default_driver = { Windows_NT = "im_select" },
+  im_select = {
+    command = "im-select.exe", -- Or a full path / 或完整路径
+    ascii = "1033",
+  },
+})
+```
+
+### Kitty
 
 kitty driver uses `OSC 1337;SetUserVar=im=temp_ascii|restore`, so it can ask the
 local kitty instance to temporarily use ASCII input and later restore the

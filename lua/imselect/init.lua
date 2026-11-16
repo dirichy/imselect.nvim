@@ -8,6 +8,7 @@ local default_opts = {
 	default_driver = {
 		Darwin = "fcitx",
 		Linux = "fcitx",
+		Windows_NT = "im_select",
 		ssh = "kitty",
 	},
 	strategy = {

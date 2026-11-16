@@ -4,7 +4,7 @@ local selected
 ---@type {tmux_passthrough?: boolean, marker?: boolean}?
 local driver_opts
 local updates = 0
-for _, name in ipairs({ "neovide", "kitty", "test_ssh", "test_os" }) do
+for _, name in ipairs({ "neovide", "kitty", "test_ssh", "test_os", "im_select" }) do
 	package.preload["imselect.driver." .. name] = function()
 		return {
 			setup = function(opts)
@@ -39,6 +39,9 @@ local cases = {
 	{ name = "disabled SSH", ssh = true, enable_in_ssh = false },
 	{ name = "Linux driver", system = "Linux", expected = "test_os" },
 	{ name = "macOS driver", system = "Darwin", expected = "test_os" },
+	{ name = "Windows default driver", system = "Windows_NT", expected = "im_select" },
+	{ name = "Windows SSH driver", system = "Windows_NT", ssh = true, expected = "kitty", passthrough = true },
+	{ name = "Windows Neovide driver", system = "Windows_NT", neovide = true, expected = "neovide" },
 }
 
 for _, case in ipairs(cases) do
@@ -61,6 +64,7 @@ for _, case in ipairs(cases) do
 		neovide = { marker = true },
 		test_ssh = { marker = true },
 		test_os = { marker = true },
+		im_select = { marker = true },
 		kitty = { tmux_passthrough = case.passthrough },
 	}
 	require("imselect").setup(opts)
