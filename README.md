@@ -126,6 +126,14 @@ and can be configured with `macism = { ascii = "input.source.id" }`.
 实际保存的输入源，而非固定的中文输入源。默认 ASCII 输入源为 `com.apple.keylayout.ABC`，
 可通过 `macism = { ascii = "input.source.id" }` 修改。
 
+Drivers can use `require("imselect.util").find_executable({ "command", "/fallback/path" })`
+to select the first executable candidate. This helper now accepts an ordered list
+instead of a command string; each driver owns its platform-specific candidates.
+
+驱动可使用 `require("imselect.util").find_executable({ "命令名", "/备用路径" })`
+选择第一个可执行项。此 helper 现在统一接收有序列表，不再接收单个命令字符串；
+各平台的候选命令及安装路径由对应驱动管理。
+
 # install 
 you can install with `lazy.nvim` or other manager. 
 ```lua

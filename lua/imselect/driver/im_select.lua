@@ -15,7 +15,7 @@ local function run(value)
 end
 
 M.setup = util.once(function(opts)
-	command = util.find_executable(opts.command or "im-select.exe")
+	command = util.find_executable({ opts.command or "im-select.exe" })
 	M.ascii_state = tostring(opts.ascii or "1033")
 	return M
 end)

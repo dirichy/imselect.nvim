@@ -3,7 +3,7 @@ local M = {}
 M.ascii_state = "com.apple.keylayout.ABC"
 local cmd
 M.setup = util.once(function(opts)
-	cmd = util.find_executable("macism")
+	cmd = util.find_executable({ "macism", "/opt/homebrew/bin/macism" })
 	M.ascii_state = opts.ascii or M.ascii_state
 	return M
 end)

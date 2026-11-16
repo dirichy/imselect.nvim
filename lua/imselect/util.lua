@@ -3,32 +3,15 @@ function M.is_ssh()
 	return vim.env.SSH_TTY or vim.env.SSH_CONNECTION or vim.env.SSH_CLIENT
 end
 
-local executable_table = {
-	["fcitx5-remote"] = {
-		Darwin = { "fcitx5-remote", "/Library/Input Methods/Fcitx5.app/Contents/bin/fcitx5-remote", "fcitx-remote" },
-		Linux = { "fcitx5-remote", "fcitx-remote", "/usr/bin/fcitx5-remote" },
-	},
-	macism = {
-		Darwin = { "macism", "/opt/homebrew/bin/macism" },
-	},
-}
-function M.find_executable(cmd)
-	local system = vim.uv.os_uname().sysname
-	if executable_table[cmd] then
-		if executable_table[cmd][system] then
-			for _, path in ipairs(executable_table[cmd][system]) do
-				if vim.fn.executable(path) == 1 then
-					return path
-				end
-			end
-			error("Can't find executable " .. cmd)
+---@param candidates string[] Command names or paths, in preference order.
+---@return string
+function M.find_executable(candidates)
+	for _, path in ipairs(candidates) do
+		if vim.fn.executable(path) == 1 then
+			return path
 		end
 	end
-	if vim.fn.executable(cmd) == 1 then
-		return cmd
-	else
-		error("Can't find executable " .. cmd)
-	end
+	error("Can't find executable: " .. table.concat(candidates, ", "))
 end
 --- only execute fn once
 ---@param fn function

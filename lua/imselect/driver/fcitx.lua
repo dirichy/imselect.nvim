@@ -3,9 +3,13 @@ local util = require("imselect.util")
 local M = {}
 M.ascii_state = false
 local fcitx_remote
+local candidates = {
+	Darwin = { "fcitx5-remote", "/Library/Input Methods/Fcitx5.app/Contents/bin/fcitx5-remote", "fcitx-remote" },
+	Linux = { "fcitx5-remote", "fcitx-remote", "/usr/bin/fcitx5-remote" },
+}
 
 M.setup = util.once(function(opts)
-	fcitx_remote = util.find_executable("fcitx5-remote")
+	fcitx_remote = util.find_executable(candidates[vim.uv.os_uname().sysname] or { "fcitx5-remote" })
 	return M
 end)
 M.set_state = function(state)
