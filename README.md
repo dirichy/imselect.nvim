@@ -56,6 +56,32 @@ require("imselect").setup({
 ## custom strategy. 
 beside neovim mode, you can provide any function to judge if we should use ascii mode. 
 for example, I implemented a features to force ascii mode in `latex` math mode with [nvimtex.nvim](https://github.com/dirichy/nvimtex.nvim).
+
+## Custom drivers / 自定义驱动
+
+A driver module exports `setup(opts)`, returning a driver with either:
+
+- `temp_ascii()` and `restore()`, managing its own temporary state; or
+- `get_state()`, `set_state(state)`, and an `ascii_state` value. The shared helper
+  saves the original state once, switches to `ascii_state`, and restores the exact
+  saved value. States can be booleans or strings such as input source IDs.
+
+驱动模块导出 `setup(opts)`，返回的驱动支持以下两种方式之一：
+
+- 实现 `temp_ascii()`、`restore()`，自行管理临时状态。
+- 实现 `get_state()`、`set_state(state)`，并提供 `ascii_state`。公共 helper 只保存
+  一次原状态，临时切换至 `ascii_state`，恢复时原样写回。状态可以是布尔值，也可以
+  是输入源 ID 等字符串。
+
+The previous `is_active/active/disable` interface is replaced by this state API.
+For example, macism now restores the actual previous source instead of selecting
+a fixed Chinese source. Its ASCII source defaults to `com.apple.keylayout.ABC`
+and can be configured with `macism = { ascii = "input.source.id" }`.
+
+原先的 `is_active/active/disable` 接口统一替换为上述状态 API。例如 macism 现在恢复
+实际保存的输入源，而非固定的中文输入源。默认 ASCII 输入源为 `com.apple.keylayout.ABC`，
+可通过 `macism = { ascii = "input.source.id" }` 修改。
+
 # install 
 you can install with `lazy.nvim` or other manager. 
 ```lua

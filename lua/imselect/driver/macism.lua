@@ -1,40 +1,31 @@
 local util = require("imselect.util")
 local M = {}
-local im_table = {
-	active = "org.fcitx.inputmethod.Fcitx5.zhHans",
-	disable = "com.apple.keylayout.ABC",
-}
+M.ascii_state = "com.apple.keylayout.ABC"
 local cmd
 M.setup = util.once(function(opts)
 	cmd = util.find_executable("macism")
-	for key, value in pairs(im_table) do
-		im_table[value] = key
-	end
+	M.ascii_state = opts.ascii or M.ascii_state
 	return M
 end)
 
-M.active = function()
-	vim.system({ cmd, im_table.active }):wait()
+M.set_state = function(state)
+	local result = vim.system({ cmd, state }):wait()
+	if result.code ~= 0 then
+		error("imselect: macism could not set the input source")
+	end
 end
-M.disable = function()
-	vim.system({ cmd, im_table.disable }):wait()
-end
-M.is_active = function(callback)
+M.get_state = function(callback)
 	if not callback then
-		local im = vim.system({ cmd }):wait().stdout
-		if not im then
-			return false
+		local result = vim.system({ cmd }):wait()
+		local state = vim.trim(result.stdout or "")
+		if result.code ~= 0 or state == "" then
+			error("imselect: macism could not query the input source")
 		end
-		im = im:gsub("%s+", "")
-		return im_table[im] == "active"
+		return state
 	end
 	return vim.system({ cmd }, {}, function(obj)
-		local im = vim.system({ cmd }):wait().stdout
-		if not im then
-			return callback(false)
-		end
-		im = im:gsub("%s+", "")
-		return callback(im_table[im] == "active")
+		local state = vim.trim(obj.stdout or "")
+		return callback(obj.code == 0 and state ~= "" and state or nil)
 	end)
 end
 return M

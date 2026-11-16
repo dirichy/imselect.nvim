@@ -1,23 +1,21 @@
 ---@meta
+---@alias Imselect.State boolean|string
 ---@class Imselect.Driver
+---@field ascii_state? Imselect.State State used for ASCII input by the restore helper.
 local M = {}
 --- temporarily enter ASCII input mode
 function M.temp_ascii() end
 --- restore input method state before temp_ascii()
 function M.restore() end
 
---- legacy: active im
---- @return boolean
-function M.active() end
---- legacy: disable im
---- @return boolean
-function M.disable() end
+--- Alternative to temp_ascii/restore: query and set the driver's opaque state.
+---@param callback? fun(state: Imselect.State?) Optional asynchronous query.
+---@return Imselect.State
+---@overload fun(callback:fun(state:Imselect.State?)):vim.SystemObj
+function M.get_state(callback) end
 
---- legacy: judge if im is active
----@param callback nil if set, will run async and call callback with the result
----@return boolean
----@overload fun(callback:fun(obj:boolean)):vim.SystemObj
-function M.is_active(callback) end
+---@param state Imselect.State
+function M.set_state(state) end
 
 --- setup driver
 ---@param opts table

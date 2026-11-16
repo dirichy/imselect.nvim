@@ -55,20 +55,20 @@ function M.with_restore(driver)
 		if saved_state ~= nil then
 			return
 		end
-		saved_state = driver.is_active()
-		if saved_state then
-			driver.disable()
+		local state = driver.get_state()
+		if state == nil then
+			error("imselect: driver returned no input state")
+		end
+		saved_state = state
+		if state ~= driver.ascii_state then
+			driver.set_state(driver.ascii_state)
 		end
 	end
 	driver.restore = function()
 		if saved_state == nil then
 			return
 		end
-		if saved_state then
-			driver.active()
-		else
-			driver.disable()
-		end
+		driver.set_state(saved_state)
 		saved_state = nil
 	end
 	return driver
