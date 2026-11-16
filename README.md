@@ -19,26 +19,66 @@ ASCII and prose restores Chinese input.
 ## multi driver.
 including fcitx, macism, neovide. and user can provide thier own driver, too. 
 
-Drivers are selected once during `setup()`, in this order:
+`driver` accepts `false`, a driver module name string, or a function called once during
+`setup()` with the merged options table. Set `false` to disable initialization.
+A string directly selects that driver.
+A function returns a module name
+such as `"fcitx"`, `"macism"`, `"neovide"`, `"kitty"`, `"im_select"`, or `"winime"`;
+return `false` or `nil` to skip initialization. The default function selects Neovide first,
+then Kitty for SSH. Local sessions probe executable candidates in priority order:
+Linux uses fcitx; macOS tries fcitx, then macism; Windows tries im_select. If no
+candidate is executable, or the system is unsupported, initialization is skipped.
+Fcitx searches `fcitx5-remote` before `fcitx-remote`, including its macOS app path;
+macism also checks `/opt/homebrew/bin/macism`. Windows respects `im_select.command`.
+Detection checks file availability only; it does not verify that the IME is running. Override the function to control both selection and
+which environments enable the plugin; no additional environment rules are applied.
+Driver-specific options remain under their module names, e.g. `kitty = { ... }`.
 
-1. Neovide always uses the `neovide` driver, regardless of SSH environment variables.
-2. Other SSH sessions use `default_driver.ssh` (default: `"kitty"`). Setting
-   `enable_in_ssh = false` disables imselect in these sessions only.
-3. Other sessions use `default_driver[os]`, where `os` is `Linux`, `Darwin`, `Windows_NT`, etc.
+`driver` 可以是 `false`、驱动模块名字符串，或在 `setup()` 时调用一次、接收合并后配置表的函数。
+设为 `false` 禁用初始化。
+字符串直接指定驱动；函数返回驱动模块名，如 `"fcitx"`、
+`"macism"`、`"neovide"`、`"kitty"`、`"im_select"` 或 `"winime"`；返回 `false` 或 `nil` 跳过
+初始化。默认优先选择 Neovide，其次在 SSH 中选择 Kitty。本地会话按优先级检查
+可执行文件：Linux 查找 fcitx；macOS 先找 fcitx，再找 macism；Windows 查找
+im_select。全部不可用或系统不支持时跳过初始化。fcitx 先找 `fcitx5-remote`，再找
+`fcitx-remote`，包含 macOS 应用内路径；macism 还检查 `/opt/homebrew/bin/macism`。
+Windows 会使用 `im_select.command` 指定的路径。探测只检查文件是否可执行，不验证
+输入法是否正在运行。覆盖此函数即可统一控制
+驱动选择和启用环境，插件不会额外施加环境优先级。各驱动选项仍放在同名配置项中，
+如 `kitty = { ... }`。
 
-驱动在 `setup()` 时按以下顺序选择一次：
+To always use a specific driver / 固定使用指定驱动：
 
-1. Neovide 始终使用 `neovide` 驱动，不受 SSH 环境变量影响。
-2. 其他 SSH 会话使用 `default_driver.ssh`，默认为 `"kitty"`。
-   `enable_in_ssh = false` 只在这些会话中禁用 imselect。
-3. 其余会话使用 `default_driver[os]`，其中 `os` 为 `Linux`、`Darwin`、`Windows_NT` 等系统名。
+```lua
+require("imselect").setup({ driver = "fcitx" })
+```
+
+To disable the plugin / 禁用插件：
+
+```lua
+require("imselect").setup({ driver = false })
+```
+
+For example, disable SSH and use macism locally on macOS:
+
+例如，禁用 SSH，在本地 macOS 使用 macism：
 
 ```lua
 require("imselect").setup({
-  default_driver = { Linux = "fcitx", Darwin = "fcitx", ssh = "kitty" },
-  enable_in_ssh = true,
+  driver = function()
+    if require("imselect.util").is_ssh() then
+      return false
+    end
+    if vim.g.neovide then
+      return "neovide"
+    end
+    return ({ Linux = "fcitx", Darwin = "macism", Windows_NT = "im_select" })[vim.uv.os_uname().sysname]
+  end,
 })
 ```
+
+The former `default_driver` table and `enable_in_ssh` flag are replaced by `driver`.
+原来的 `default_driver` 表和 `enable_in_ssh` 开关统一由 `driver` 替代。
 
 ### Windows
 
@@ -56,7 +96,6 @@ Windows 上的实际输入行为。
 
 ```lua
 require("imselect").setup({
-  default_driver = { Windows_NT = "im_select" },
   im_select = {
     command = "im-select.exe", -- Or a full path / 或完整路径
     ascii = "1033",
@@ -78,7 +117,7 @@ driver's actual behavior with Windows terminals and IMEs still needs testing.
 
 ```lua
 require("imselect").setup({
-  default_driver = { Windows_NT = "winime" },
+  driver = "winime",
 })
 ```
 
@@ -103,13 +142,15 @@ terminal with the watcher above; imselect does not detect the terminal type.
 SSH detection uses `SSH_TTY`, `SSH_CONNECTION`, or `SSH_CLIENT`.
 SSH 终端会话默认使用的 `kitty` 驱动需要本地 Kitty 配合上述 watcher；插件不会检测
 终端类型。SSH 环境通过 `SSH_TTY`、`SSH_CONNECTION` 或 `SSH_CLIENT` 判断。
+Kitty defaults `tmux_passthrough` to true in SSH and false locally; an explicit
+value overrides this default.
+Kitty 的 `tmux_passthrough` 在 SSH 中默认为 true，本地默认为 false；可显式覆盖。
 The driver sends OSC with `nvim_ui_send()` like Neovim's OSC52 provider. If your
 tmux path needs explicit passthrough wrapping outside of auto SSH detection, use:
 ```lua
 require("imselect").setup({
-  default_driver = { Linux = "kitty", Darwin = "kitty" },
+  driver = "kitty",
   kitty = { tmux_passthrough = true },
-  enable_in_ssh = true,
 })
 ```
 ## Syntax-aware switching / 语法感知

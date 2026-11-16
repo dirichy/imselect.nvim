@@ -1,7 +1,7 @@
 ---@type Imselect.Driver
 local M = {}
 local default_opts = {
-	tmux_passthrough = false,
+	tmux_passthrough = not not require("imselect.util").is_ssh(),
 }
 local opts = default_opts
 

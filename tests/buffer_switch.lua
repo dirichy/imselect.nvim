@@ -33,7 +33,7 @@ local strategy = {
 	end,
 }
 require("imselect").setup({
-	default_driver = { Linux = "test", Darwin = "test", Windows_NT = "test" },
+	driver = "test",
 	strategy = { strategy = { strategy } },
 })
 assert(vim.deep_equal(events, { "restore" }))

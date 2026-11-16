@@ -2,8 +2,12 @@ local util = require("imselect.util")
 local M = {}
 local command
 
+function M.find_command(opts)
+	return util.find_executable({ opts.command or "im-select.exe" })
+end
+
 M.setup = util.once(function(opts)
-	command = util.find_executable({ opts.command or "im-select.exe" })
+	command = M.find_command(opts)
 	M.ascii_state = tostring(opts.ascii or "1033")
 	return M
 end)

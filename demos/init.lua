@@ -58,5 +58,7 @@ assert(
 	end),
 	"timed out waiting for the XIM input context"
 )
-require("imselect").setup({ default_driver = { Linux = "fcitx" }, enable_in_ssh = false })
+require("imselect").setup({
+	driver = "fcitx",
+})
 vim.fn.writefile({ "ready" }, session .. "/ready")

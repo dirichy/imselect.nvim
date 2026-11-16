@@ -2,8 +2,12 @@ local util = require("imselect.util")
 local M = {}
 M.ascii_state = "com.apple.keylayout.ABC"
 local cmd
+function M.find_command()
+	return util.find_executable({ "macism", "/opt/homebrew/bin/macism" })
+end
+
 M.setup = util.once(function(opts)
-	cmd = util.find_executable({ "macism", "/opt/homebrew/bin/macism" })
+	cmd = M.find_command()
 	M.ascii_state = opts.ascii or M.ascii_state
 	return M
 end)

@@ -8,8 +8,12 @@ local candidates = {
 	Linux = { "fcitx5-remote", "fcitx-remote", "/usr/bin/fcitx5-remote" },
 }
 
+function M.find_command()
+	return util.find_executable(candidates[vim.uv.os_uname().sysname] or { "fcitx5-remote" })
+end
+
 M.setup = util.once(function(opts)
-	fcitx_remote = util.find_executable(candidates[vim.uv.os_uname().sysname] or { "fcitx5-remote" })
+	fcitx_remote = M.find_command()
 	return M
 end)
 M.set_state = function(state)

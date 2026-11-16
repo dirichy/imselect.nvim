@@ -1,18 +1,29 @@
 local M = {}
 local strategy = require("imselect.strategy.init")
-local system = vim.uv.os_uname().sysname
 local util = require("imselect.util")
 local prev_cond
 vim.g.imselect_enabled = true
 local default_opts = {
-	default_driver = {
-		Darwin = "fcitx",
-		Linux = "fcitx",
-		Windows_NT = "im_select",
-		ssh = "kitty",
-	},
+	---@type string|false|fun(opts:table):(string|false|nil)
+	driver = function(opts)
+		if vim.g.neovide then
+			return "neovide"
+		end
+		if util.is_ssh() then
+			return "kitty"
+		end
+		local candidates = {
+			Linux = { "fcitx" },
+			Darwin = { "fcitx", "macism" },
+			Windows_NT = { "im_select" },
+		}
+		for _, name in ipairs(candidates[vim.uv.os_uname().sysname] or {}) do
+			if pcall(require("imselect.driver." .. name).find_command, opts[name] or {}) then
+				return name
+			end
+		end
+	end,
 	focus_event = false,
-	enable_in_ssh = true,
 }
 
 ---@type table<number,function>
@@ -77,22 +88,11 @@ end
 M.setup = util.once(function(opts)
 	opts = opts or {}
 	opts = vim.tbl_deep_extend("force", default_opts, opts)
-	local driver_name
-	if vim.g.neovide then
-		driver_name = "neovide"
-	elseif util.is_ssh() then
-		if not opts.enable_in_ssh then
-			return
-		end
-		driver_name = opts.default_driver.ssh
-		if driver_name == "kitty" then
-			opts.kitty = vim.tbl_deep_extend("force", { tmux_passthrough = true }, opts.kitty or {})
-		end
-	else
-		driver_name = opts.default_driver[system]
+	local driver_name = opts.driver
+	if type(driver_name) == "function" then
+		driver_name = driver_name(opts)
 	end
 	if not driver_name then
-		vim.notify("Imselect don't support " .. system, vim.log.levels.WARN)
 		return
 	end
 	strategy.setup(opts.strategy or {})

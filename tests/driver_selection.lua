@@ -1,12 +1,22 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 
+local finders = {}
+for _, name in ipairs({ "fcitx", "macism", "im_select" }) do
+	finders[name] = require("imselect.driver." .. name).find_command
+end
+local available = {}
+vim.fn.executable = function(command)
+	return available[command] and 1 or 0
+end
+
 local selected
----@type {tmux_passthrough?: boolean, marker?: boolean}?
+---@type {marker?: boolean}?
 local driver_opts
 local updates = 0
-for _, name in ipairs({ "neovide", "kitty", "test_ssh", "test_os", "im_select", "winime" }) do
+for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test_os", "im_select", "winime" }) do
 	package.preload["imselect.driver." .. name] = function()
 		return {
+			find_command = finders[name],
 			setup = function(opts)
 				assert(selected == nil, "only one driver should be initialized")
 				selected = name
@@ -30,19 +40,51 @@ local function os_uname()
 end
 vim.uv.os_uname = os_uname
 local cases = {
-	{ name = "Neovide over disabled SSH", neovide = true, ssh = true, enable_in_ssh = false, expected = "neovide" },
+	{ name = "disabled driver", driver = false },
+	{ name = "disabled driver in Neovide over SSH", neovide = true, ssh = true, driver = false },
+	{ name = "selector returns false", custom = true, result = false },
+	{ name = "fixed driver", driver = "test_os", expected = "test_os" },
+	{
+		name = "fixed driver overrides Neovide and SSH",
+		neovide = true,
+		ssh = true,
+		driver = "fcitx",
+		expected = "fcitx",
+	},
+	{ name = "fixed driver on unsupported OS", system = "unknown", driver = "test_os", expected = "test_os" },
 	{ name = "Neovide over SSH", neovide = true, ssh = true, expected = "neovide" },
 	{ name = "local Neovide", neovide = true, expected = "neovide" },
-	{ name = "SSH defaults to Kitty", ssh = true, expected = "kitty", passthrough = true },
-	{ name = "custom SSH driver", ssh = true, ssh_driver = "test_ssh", expected = "test_ssh" },
-	{ name = "explicit passthrough override", ssh = true, passthrough = false, expected = "kitty" },
-	{ name = "disabled SSH", ssh = true, enable_in_ssh = false },
-	{ name = "Linux driver", system = "Linux", expected = "test_os" },
-	{ name = "macOS driver", system = "Darwin", expected = "test_os" },
-	{ name = "Windows default driver", system = "Windows_NT", expected = "im_select" },
-	{ name = "Windows native IME driver", system = "Windows_NT", windows_driver = "winime", expected = "winime" },
-	{ name = "Windows SSH driver", system = "Windows_NT", ssh = true, expected = "kitty", passthrough = true },
+	{ name = "SSH defaults to Kitty", ssh = true, expected = "kitty" },
+	{ name = "Linux driver", system = "Linux", commands = { "fcitx5-remote" }, expected = "fcitx" },
+	{ name = "Linux legacy fcitx", commands = { "fcitx-remote" }, expected = "fcitx" },
+	{ name = "Linux without drivers" },
+	{ name = "macOS prefers fcitx", system = "Darwin", commands = { "fcitx5-remote", "macism" }, expected = "fcitx" },
+	{
+		name = "macOS app path",
+		system = "Darwin",
+		commands = { "/Library/Input Methods/Fcitx5.app/Contents/bin/fcitx5-remote" },
+		expected = "fcitx",
+	},
+	{ name = "macOS falls back to macism", system = "Darwin", commands = { "macism" }, expected = "macism" },
+	{ name = "macOS Homebrew path", system = "Darwin", commands = { "/opt/homebrew/bin/macism" }, expected = "macism" },
+	{ name = "macOS without drivers", system = "Darwin" },
+	{ name = "Windows default driver", system = "Windows_NT", commands = { "im-select.exe" }, expected = "im_select" },
+	{
+		name = "Windows custom path",
+		system = "Windows_NT",
+		commands = { "/custom/im-select.exe" },
+		command = "/custom/im-select.exe",
+		expected = "im_select",
+	},
+	{ name = "Windows without drivers", system = "Windows_NT" },
+	{ name = "Windows SSH driver", system = "Windows_NT", ssh = true, expected = "kitty" },
 	{ name = "Windows Neovide driver", system = "Windows_NT", neovide = true, expected = "neovide" },
+	{ name = "unsupported OS", system = "unknown" },
+	{ name = "custom SSH driver", ssh = true, custom = true, expected = "test_ssh" },
+	{ name = "override Neovide", neovide = true, custom = true, expected = "test_os" },
+	{ name = "disable Neovide", neovide = true, custom = true, disabled = true },
+	{ name = "disable SSH", ssh = true, custom = true, disabled = true },
+	{ name = "custom Windows driver", system = "Windows_NT", custom = true, expected = "winime" },
 }
 
 for _, case in ipairs(cases) do
@@ -52,6 +94,10 @@ for _, case in ipairs(cases) do
 			package.loaded[name] = nil
 		end
 	end
+	available = {}
+	for _, command in ipairs(case.commands or {}) do
+		available[command] = true
+	end
 	selected, driver_opts, updates = nil, nil, 0
 	system = case.system or "Linux"
 	vim.g.neovide = case.neovide or false
@@ -59,33 +105,42 @@ for _, case in ipairs(cases) do
 	vim.env.SSH_CONNECTION = case.ssh and "test connection" or nil
 	vim.env.SSH_CLIENT = nil
 
-	local opts = {
-		default_driver = {
-			Linux = "test_os",
-			Darwin = "test_os",
-			Windows_NT = case.windows_driver,
-			ssh = case.ssh_driver,
-		},
-		enable_in_ssh = case.enable_in_ssh,
-		neovide = { marker = true },
-		test_ssh = { marker = true },
-		test_os = { marker = true },
-		im_select = { marker = true },
-		winime = { marker = true },
-		kitty = { tmux_passthrough = case.passthrough },
-	}
-	require("imselect").setup(opts)
+	local calls = 0
+	local opts = { driver = case.driver }
+	for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test_os", "im_select", "winime" }) do
+		opts[name] = { marker = true }
+	end
+	opts.im_select.command = case.command
+	if case.custom then
+		opts.driver = function(config)
+			assert(config.im_select.command == opts.im_select.command and config.fcitx.marker == true)
+			calls = calls + 1
+			if case.result == false then
+				return false
+			end
+			if case.disabled then
+				return nil
+			end
+			if require("imselect.util").is_ssh() then
+				return "test_ssh"
+			end
+			return vim.uv.os_uname().sysname == "Windows_NT" and "winime" or "test_os"
+		end
+	end
+	local imselect = require("imselect")
+	imselect.setup(opts)
+	imselect.setup(opts)
+	assert(calls == (case.custom and 1 or 0), case.name .. ": selector runs once")
 	assert(selected == case.expected, case.name .. ": selected " .. tostring(selected))
 	if case.expected then
 		assert(updates == 1, case.name)
 		assert(driver_opts, case.name)
-		if selected == "kitty" then
-			assert(driver_opts.tmux_passthrough == case.passthrough, case.name)
-		else
-			assert(driver_opts.marker == true, case.name)
-		end
+		assert(driver_opts.marker == true, case.name)
 	else
-		assert(updates == 0 and #vim.api.nvim_get_autocmds({ event = "ModeChanged" }) == 0, case.name)
+		assert(
+			imselect.driver == nil and updates == 0 and #vim.api.nvim_get_autocmds({ event = "ModeChanged" }) == 0,
+			case.name
+		)
 	end
 end
 print("driver selection: OK")
