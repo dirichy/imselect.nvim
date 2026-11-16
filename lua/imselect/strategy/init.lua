@@ -39,6 +39,7 @@ function M.add_strategy(new_strategy)
 			return
 		end
 	end
+	table.insert(default_opts.strategy, new_strategy)
 end
 
 return M
