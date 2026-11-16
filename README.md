@@ -49,6 +49,24 @@ require("imselect").setup({
 })
 ```
 
+Alternatively, the `winime` driver controls the foreground input window's IME
+open status through LuaJIT FFI and the system `user32`/`imm32` DLLs. It requires
+native Windows Neovim with LuaJIT; it does not require AutoHotkey or an external
+command. It saves and restores the open status without changing the layout or
+conversion mode. API delivery failures/timeouts are reported as errors. This
+driver's actual behavior with Windows terminals and IMEs still needs testing.
+
+也可使用 `winime` 驱动，通过 LuaJIT FFI 和系统自带的 `user32`、`imm32` DLL 控制
+前台输入窗口的 IME 开关。它需要原生 Windows Neovim 和 LuaJIT，无需 AutoHotkey
+或外部命令。驱动保存和恢复开关状态，不主动修改布局及转换模式；API 消息发送
+失败或超时会报错。目前仍需在 Windows 终端和输入法上实测其实际行为。
+
+```lua
+require("imselect").setup({
+  default_driver = { Windows_NT = "winime" },
+})
+```
+
 ### Kitty
 
 kitty driver uses `OSC 1337;SetUserVar=im=temp_ascii|restore`, so it can ask the
