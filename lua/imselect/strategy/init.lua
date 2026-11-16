@@ -15,11 +15,14 @@ end)
 ---@return boolean
 function M.apply(buffer)
 	for _, strtgy in ipairs(default_opts.strategy) do
-		if
-			strtgy.condition(buffer)
-			and (strtgy.apply and strtgy.apply(buffer) or require("imselect").set_inspecter(buffer, strtgy.inspecter))
-		then
-			return true
+		if strtgy.condition(buffer) then
+			if strtgy.apply then
+				if strtgy.apply(buffer) then
+					return true
+				end
+			else
+				return require("imselect").set_inspecter(buffer, strtgy.inspecter)
+			end
 		end
 	end
 	return false
