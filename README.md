@@ -26,8 +26,9 @@ A function returns a module name
 such as `"fcitx"`, `"macism"`, `"neovide"`, `"kitty"`, `"im_select"`, or `"winime"`;
 return `false` or `nil` to skip initialization. The default function selects Neovide first,
 then Kitty for SSH. Local sessions probe executable candidates in priority order:
-Linux uses fcitx; macOS tries fcitx, then macism; Windows tries im_select. If no
-candidate is executable, or the system is unsupported, initialization is skipped.
+Linux uses fcitx; macOS tries fcitx, then macism; Windows tries im_select and
+falls back to winime when the executable is missing. Linux/macOS skip initialization
+if no candidate is executable; unsupported systems also skip initialization.
 Fcitx searches `fcitx5-remote` before `fcitx-remote`, including its macOS app path;
 macism also checks `/opt/homebrew/bin/macism`. Windows respects `im_select.command`.
 Detection checks file availability only; it does not verify that the IME is running. Override the function to control both selection and
@@ -40,7 +41,8 @@ Driver-specific options remain under their module names, e.g. `kitty = { ... }`.
 `"macism"`、`"neovide"`、`"kitty"`、`"im_select"` 或 `"winime"`；返回 `false` 或 `nil` 跳过
 初始化。默认优先选择 Neovide，其次在 SSH 中选择 Kitty。本地会话按优先级检查
 可执行文件：Linux 查找 fcitx；macOS 先找 fcitx，再找 macism；Windows 查找
-im_select。全部不可用或系统不支持时跳过初始化。fcitx 先找 `fcitx5-remote`，再找
+im_select，找不到可执行文件时回退到 winime。Linux/macOS 全部不可用或系统不支持时
+跳过初始化。fcitx 先找 `fcitx5-remote`，再找
 `fcitx-remote`，包含 macOS 应用内路径；macism 还检查 `/opt/homebrew/bin/macism`。
 Windows 会使用 `im_select.command` 指定的路径。探测只检查文件是否可执行，不验证
 输入法是否正在运行。覆盖此函数即可统一控制
@@ -82,14 +84,16 @@ The former `default_driver` table and `enable_in_ssh` flag are replaced by `driv
 
 ### Windows
 
-Windows terminal sessions default to the `im_select` driver. Install
+Windows terminal sessions prefer `im_select`, falling back to `winime` if its
+executable is not found. To use `im_select`, install
 [`im-select.exe`](https://github.com/daipeihust/im-select) and put it on `PATH`,
 or configure its full path. The default ASCII layout ID is `"1033"` (English US);
 that layout must be installed. The driver saves and restores the original layout
 ID. It does not query the Chinese/English mode inside that layout. Native Windows
 input behavior has not yet been tested for this driver.
 
-Windows 终端会话默认使用 `im_select` 驱动。安装上述 `im-select.exe` 并放入 `PATH`，
+Windows 终端会话优先使用 `im_select`，找不到可执行文件时回退到 `winime`。
+要使用 `im_select`，安装上述 `im-select.exe` 并放入 `PATH`，
 也可以配置完整路径。默认 ASCII 布局 ID 为 `"1033"`（美式英语），需要先安装该布局。
 驱动保存并恢复原布局 ID，不查询同一布局内部的中英文模式。目前尚未实测此驱动在
 Windows 上的实际输入行为。

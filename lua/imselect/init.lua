@@ -12,15 +12,19 @@ local default_opts = {
 		if util.is_ssh() then
 			return "kitty"
 		end
+		local system = vim.uv.os_uname().sysname
 		local candidates = {
 			Linux = { "fcitx" },
 			Darwin = { "fcitx", "macism" },
 			Windows_NT = { "im_select" },
 		}
-		for _, name in ipairs(candidates[vim.uv.os_uname().sysname] or {}) do
+		for _, name in ipairs(candidates[system] or {}) do
 			if pcall(require("imselect.driver." .. name).find_command, opts[name] or {}) then
 				return name
 			end
+		end
+		if system == "Windows_NT" then
+			return "winime"
 		end
 	end,
 	focus_event = false,
