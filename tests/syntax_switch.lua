@@ -35,6 +35,33 @@ local ok, err = pcall(function()
 	wait_state("n", false, "Normal mode selects ASCII")
 	request("nvim_input", "i")
 	wait_state("i", false, "Insert in code stays ASCII")
+	request("nvim_set_var", "neovide_input_ime", true)
+	request("nvim_input", "x")
+	assert(vim.wait(1000, function()
+		return request("nvim_get_current_line"):sub(1, 1) == "x"
+	end))
+	assert(request("nvim_get_var", "neovide_input_ime") == true, "typing in code preserves a manual IME choice")
+	request(
+		"nvim_exec_lua",
+		[[
+		vim.opt.completeopt = { "menuone", "noselect" }
+		vim.schedule(function()
+			vim.fn.complete(1, { "xlocal_one", "xlocal_two" })
+		end)
+	]],
+		{}
+	)
+	wait_state("ic", true, "Insert completion must preserve a manual IME choice in code")
+	request("nvim_input", "<C-e>")
+	wait_state("i", true, "closing completion stays in Insert without reapplying ASCII")
+	request("nvim_input", "<C-x>")
+	wait_state("ix", true, "CTRL-X completion is also an Insert submode")
+	request("nvim_input", "<C-e>")
+	wait_state("i", true, "leaving CTRL-X completion preserves the manual choice")
+	request("nvim_input", "<Esc>")
+	wait_state("n", false, "leaving code must reconcile a manual IME change even when both policies select ASCII")
+	request("nvim_input", "i")
+	wait_state("i", false, "reentering code stays ASCII")
 	request("nvim_win_set_cursor", 0, { 2, 5 })
 	wait_state("i", true, "moving into a comment restores the input method")
 	request("nvim_win_set_cursor", 0, { 1, 6 })

@@ -31,14 +31,14 @@ driver.temp_ascii()
 assert(layout == "1033")
 assert(vim.deep_equal(commands, { { "/test/im-select.exe" }, { "/test/im-select.exe", "1033" } }))
 driver.temp_ascii()
-assert(#commands == 2)
+assert(#commands == 3, "repeat requests query the layout to detect manual changes")
 fail = true
 assert(not pcall(driver.restore))
 fail = false
 driver.restore()
 assert(layout == "2052", "restore the original ID after a failed restoration")
 driver.restore()
-assert(#commands == 4)
+assert(#commands == 5)
 
 layout = "1033"
 local before = #commands

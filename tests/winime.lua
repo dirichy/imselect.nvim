@@ -70,7 +70,7 @@ local driver = require("imselect.util").with_restore(require("imselect.driver.wi
 driver.temp_ascii()
 assert(enabled == false and queries == 1 and writes == 1)
 driver.temp_ascii()
-assert(queries == 1 and writes == 1)
+assert(queries == 2 and writes == 1)
 timeout = true
 assert(not pcall(driver.restore))
 timeout = false

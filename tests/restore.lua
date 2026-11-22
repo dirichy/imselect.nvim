@@ -27,7 +27,10 @@ for _, case in ipairs({
 	assert(writes == (case.state == case.ascii and 0 or 1))
 	local before = writes
 	driver.temp_ascii()
-	assert(queries == 1 and writes == before, "repeated calls must preserve the original state")
+	assert(
+		queries == 2 and writes == before,
+		"repeated calls check actual input without replacing the saved state with ASCII"
+	)
 	driver.restore()
 	assert(state == case.state)
 	driver.restore()
@@ -54,6 +57,15 @@ assert(not pcall(driver.restore))
 fail = false
 driver.restore()
 assert(state == "original")
+
+state = "ascii"
+driver.temp_ascii()
+state = "manual-input"
+driver.temp_ascii()
+assert(state == "ascii", "repeated requests must reconcile manual changes")
+driver.temp_ascii()
+driver.restore()
+assert(state == "manual-input", "reconciling a manual change must preserve it for later restoration")
 
 local direct = { temp_ascii = function() end, restore = function() end }
 assert(util.with_restore(direct) == direct)

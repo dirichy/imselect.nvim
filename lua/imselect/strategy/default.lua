@@ -1,12 +1,9 @@
----Restore text input in Insert/search; use ASCII in code and other modes.
+---Classify the Insert-mode cursor context; mode requirements belong to the caller.
 ---@type Imselect.Strategy
 local M = { priority = 0, name = "default" }
 local default_opts = {
 	inspecter = function(buffer)
-		if vim.fn.getcmdtype() == "/" or vim.fn.getcmdtype() == "?" then
-			return true
-		end
-		return vim.api.nvim_get_mode().mode == "i" and require("imselect.syntax").in_text(buffer)
+		return require("imselect.syntax").in_text(buffer)
 	end,
 }
 local util = require("imselect.util")

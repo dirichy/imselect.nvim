@@ -156,6 +156,7 @@ require("imselect").setup({
   driver = "kitty",
   kitty = { tmux_passthrough = true },
 })
+
 ```
 ## Syntax-aware switching / 语法感知
 
@@ -199,13 +200,36 @@ replaces this built-in decision.
 处理。未完成输入的结果取决于 parser 当前的语法树；自定义默认策略的 `inspecter`
 会替换这项内置判断。
 
+Custom inspectors now classify only the cursor context in Insert mode, including
+completion submodes (`ic` and `ix`). Showing or closing a completion menu does not
+itself reapply ASCII. Mode rules are applied separately: Normal and other
+non-search modes require ASCII; `/` and
+`?` searches restore input. Inspectors cannot override these mode rules. A manual
+IME choice survives typing and cursor movement while the context classification
+stays unchanged. When a mode starts requiring ASCII, imselect reconciles manual
+changes again even if the combined requirement was already ASCII (for example,
+Escape from a code block). This does not add input-method polling on every input.
+
+自定义 `inspecter` 现在只判断 Insert 内的光标上下文。
+补全子模式（`ic`、`ix`）也属于 Insert，弹出或关闭补全不会单独触发切回英文。
+模式规则由主流程独立处理：Normal 等非插入、非搜索模式要求英文，`/`、`?` 搜索恢复输入法；自定义策略不能
+覆盖这些模式要求。上下文判断不变时，输入和移动光标不会反复覆盖手动选择。
+当模式开始要求英文时，即使总要求原本已经是英文，也会重新协调手切状态，例如
+从代码块按 Esc 退出。这不会为每次输入增加输入法轮询。
+
+Deferred handling and request coordination are described in the
+[state design notes](docs/input-state.md).
+延后处理与请求协调的原理见[状态设计说明](docs/input-state.md)。
+
 ## Custom strategy / 自定义策略
 
 Override `strategy.strategy_provider.default.inspecter` with a function receiving
-the buffer number. Return `true` to restore input or `false` to temporarily use ASCII.
+the buffer number. It is called only in Insert mode. Return `true` to restore input
+in the current cursor context or `false` to temporarily use ASCII; do not include mode checks.
 
 可通过 `strategy.strategy_provider.default.inspecter` 提供接收缓冲区编号的判断函数：
-返回 `true` 恢复输入法，返回 `false` 临时使用英文。
+仅在 Insert 中调用，返回 `true` 表示当前光标上下文恢复输入法，返回 `false` 临时
+使用英文；不再在策略中判断 mode。
 
 ## Custom drivers / 自定义驱动
 
@@ -213,15 +237,22 @@ A driver module exports `setup(opts)`, returning a driver with either:
 
 - `temp_ascii()` and `restore()`, managing its own temporary state; or
 - `get_state()`, `set_state(state)`, and an `ascii_state` value. The shared helper
-  saves the original state once, switches to `ascii_state`, and restores the exact
-  saved value. States can be booleans or strings such as input source IDs.
+  saves the original state, switches to `ascii_state`, and restores the exact
+  saved value. Repeated ASCII requests query the actual state: they preserve the
+  saved value if still ASCII, or save a manual non-ASCII choice before switching
+  again. States can be booleans or strings such as input source IDs.
 
 驱动模块导出 `setup(opts)`，返回的驱动支持以下两种方式之一：
 
 - 实现 `temp_ascii()`、`restore()`，自行管理临时状态。
-- 实现 `get_state()`、`set_state(state)`，并提供 `ascii_state`。公共 helper 只保存
-  一次原状态，临时切换至 `ascii_state`，恢复时原样写回。状态可以是布尔值，也可以
-  是输入源 ID 等字符串。
+- 实现 `get_state()`、`set_state(state)`，并提供 `ascii_state`。公共 helper 保存
+  原状态，临时切换至 `ascii_state`，恢复时原样写回。重复 ASCII 请求会查询实际
+  状态：仍为 ASCII 时保留缓存，若已手切为非 ASCII，则先保存手动选择再临时切回。
+  状态可以是布尔值，也可以是输入源 ID 等字符串。
+
+Drivers implementing `temp_ascii()` directly must also reconcile manual changes
+on repeated requests rather than returning solely because a saved state exists.
+直接实现 `temp_ascii()` 的驱动也应在重复请求时协调手切状态，不能仅因已有缓存就返回。
 
 The previous `is_active/active/disable` interface is replaced by this state API.
 For example, macism now restores the actual previous source instead of selecting

@@ -19,12 +19,27 @@ buffer transitions. The command helper is also tested with real Neovim subproces
 for synchronous/asynchronous results, failed exits, and timeouts. The Windows FFI declarations are parsed by real LuaJIT, but
 native input method behavior still requires testing on the corresponding platform.
 
+Mode tests send real `i`, Escape and command-line input to an embedded Neovim.
+They verify that custom cursor inspectors run only in Insert, mode rules remain
+independent, and a manual IME choice in code survives typing but is reconciled on
+Escape even when the combined policy remains ASCII. Restore tests cover repeated
+requests preserving the saved state and capturing a new manual non-ASCII choice.
+Native completion tests cover `ic` and `ix`, preserving manual input in code and
+continuing to evaluate custom cursor inspectors during completion.
+
 每个文件都在独立 Neovim 进程中运行，不加载用户配置。驱动命令和 Windows DLL 调用
 使用 mock，或通过 Neovide 变量验证，因此不会切换系统输入法，也不要求安装 fcitx、macism、Kitty 或
 Neovide。测试覆盖命令参数、可执行文件查找、初始化、策略配置与选择、原状态恢复、
 默认驱动选择、自定义选择函数与禁用初始化，以及缓冲区切换。命令 helper 还通过真实 Neovim 子进程验证同步、异步、
 非零退出和超时。Windows FFI 声明由真实 LuaJIT 解析，原生输入法的
 实际行为仍需在对应平台验证。
+
+模式测试向嵌入式 Neovim 发送真实的 `i`、Esc 和命令行输入，验证自定义光标判断仅在
+Insert 中调用、模式要求独立生效，以及代码区手切输入法后继续输入不会被改回，
+但按 Esc 时即使总要求仍是 ASCII，也会重新协调。恢复测试覆盖重复请求保留原
+缓存，以及识别并保存新的手动非 ASCII 选择。
+原生补全测试覆盖 `ic`、`ix` 子模式，验证代码区手动选择不被补全覆盖，并且补全
+期间仍使用自定义光标判断。
 
 Syntax tests use real Lua, Markdown, Markdown Inline and Vim parsers shipped with
 Neovim, with highlighting disabled. They cover node and injection classification,

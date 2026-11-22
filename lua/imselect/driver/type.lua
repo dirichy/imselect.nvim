@@ -3,7 +3,7 @@
 ---@class Imselect.Driver
 ---@field ascii_state? Imselect.State State used for ASCII input by the restore helper.
 local M = {}
---- temporarily enter ASCII input mode
+--- Reconcile manual changes, then temporarily enter ASCII; repeat requests must recheck actual state.
 function M.temp_ascii() end
 --- restore input method state before temp_ascii()
 function M.restore() end

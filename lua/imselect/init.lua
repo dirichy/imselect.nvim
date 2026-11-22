@@ -1,7 +1,7 @@
 local M = {}
 local strategy = require("imselect.strategy.init")
 local util = require("imselect.util")
-local prev_cond
+local prev_cond, prev_mode_ascii
 vim.g.imselect_enabled = true
 local default_opts = {
 	---@type string|false|fun(opts:table):(string|false|nil)
@@ -47,30 +47,22 @@ function M.inspect()
 	return inspecters[buffer] and inspecters[buffer](buffer)
 end
 
-local function inspect_changed()
-	local cur_cond = M.inspect()
-	if cur_cond == prev_cond then
-		return false, false
-	end
-	prev_cond = cur_cond
-	return true, cur_cond
-end
-
 local function apply_buffer_strategy(buffer)
 	inspecters[buffer] = nil
 	strategy.apply(buffer)
 end
 
 local function update_driver(force)
-	local flag, new_state
-	if force then
-		flag = true
-		new_state = M.inspect()
-		prev_cond = new_state
-	else
-		flag, new_state = inspect_changed()
-	end
-	if not flag then
+	local mode = vim.api.nvim_get_mode().mode
+	local cmdtype = vim.fn.getcmdtype()
+	local search = cmdtype == "/" or cmdtype == "?"
+	-- ic (completion) and ix (CTRL-X) still use the Insert cursor policy.
+	local mode_ascii = mode:sub(1, 1) ~= "i" and not search
+	local new_state = search or (not mode_ascii and M.inspect())
+	-- When mode change into ascii, we should force to call driver no matter if state changed.
+	local mode_change_into_ascii = mode_ascii and prev_mode_ascii == false
+	if not force and new_state == prev_cond and not mode_change_into_ascii then
+		prev_mode_ascii = mode_ascii
 		return
 	end
 
@@ -79,6 +71,7 @@ local function update_driver(force)
 	else
 		M.driver.temp_ascii()
 	end
+	prev_cond, prev_mode_ascii = new_state, mode_ascii
 end
 
 M.update = function(force)

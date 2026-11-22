@@ -68,14 +68,14 @@ function M.with_restore(driver)
 
 	local saved_state = nil
 	driver.temp_ascii = function()
-		if saved_state ~= nil then
-			return
-		end
 		local state = driver.get_state()
 		if state == nil then
 			error("imselect: driver returned no input state")
 		end
-		saved_state = state
+		-- Non-ASCII while temporarily ASCII means the user selected a new input state.
+		if saved_state == nil or state ~= driver.ascii_state then
+			saved_state = state
+		end
 		if state ~= driver.ascii_state then
 			driver.set_state(driver.ascii_state)
 		end

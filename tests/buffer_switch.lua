@@ -2,6 +2,10 @@ vim.opt.rtp:prepend(vim.fn.getcwd())
 vim.env.SSH_TTY = nil
 vim.env.SSH_CONNECTION = nil
 vim.env.SSH_CLIENT = nil
+-- Isolate buffer selection from mode requirements; real key transitions are tested separately.
+vim.api.nvim_get_mode = function()
+	return { mode = "i", blocking = false }
+end
 
 local events = {}
 package.preload["imselect.driver.test"] = function()

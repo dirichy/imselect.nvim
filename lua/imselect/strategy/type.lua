@@ -18,7 +18,8 @@ M.apply = nil
 ---@return boolean
 function M.condition(buffer) end
 
---- this function should be a inspecter, take buffer number as variable. return true means the im should be active, false means the im should be disabled.
+--- Classify the cursor context in Insert mode only: true restores input, false requests ASCII.
+--- Mode requirements are applied by the caller and cannot be overridden here.
 --- note that this function will be called rapidly, so don't make it too heavy.
 ---@param buffer number
 ---@return boolean
