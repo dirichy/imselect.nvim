@@ -58,6 +58,8 @@ jobs:
           cc -O2 -shared -fPIC -I .dev/tree-sitter-latex/src \
             .dev/tree-sitter-latex/src/parser.c .dev/tree-sitter-latex/src/scanner.c \
             -o .dev/latex/parser/latex.so
+      - name: Check demo font coverage
+        run: python3 demos/check-fonts.py
       - name: Record and verify real input method interaction
         run: python3 demos/record.py
       - name: Upload verified demo
@@ -73,7 +75,7 @@ jobs:
         with:
           name: imselect-demo-debug
           path: |
-            demos/output/verification.json
+            demos/output/*verification.json
             .dev/imselect-demo-*/*.log
           include-hidden-files: true
           if-no-files-found: ignore
@@ -97,9 +99,14 @@ jobs:
           import json
           from pathlib import Path
           output = Path("demos")
-          assert json.loads((output / "verification.json").read_text()).get("verified") is True
-          for name in ("demo.gif", "demo.mp4", "verification.json"):
-              assert (output / name).stat().st_size > 0, f"Missing or empty asset: {name}"
+          report = json.loads((output / "verification.json").read_text())
+          assert report.get("verified") is True
+          assert json.loads((output / "font-verification.json").read_text()).get("verified") is True
+          for scene in ("demo", "code", "modes", "demo-zh", "code-zh", "modes-zh"):
+              assert report["scenes"][scene]["verified"] is True
+              for ext in ("gif", "mp4"):
+                  name = f"{scene}.{ext}"
+                  assert (output / name).stat().st_size > 0, f"Missing or empty asset: {name}"
           PY
       - name: Replace demo release assets
         env:
@@ -112,7 +119,7 @@ jobs:
 
           These assets are replaced on each successful recording. This is not a plugin release.
           EOF
-          assets=(demos/demo.gif demos/demo.mp4 demos/verification.json)
+          assets=(demos/*.gif demos/*.mp4 demos/verification.json)
           if gh release view demos --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload demos "${assets[@]}" --clobber --repo "$GITHUB_REPOSITORY"
             gh release edit demos --repo "$GITHUB_REPOSITORY" \
@@ -124,7 +131,8 @@ jobs:
           fi
       - name: Check published README media
         run: |
-          for media in demo.gif demo.mp4; do
+          for media in demo.gif demo.mp4 code.gif code.mp4 modes.gif modes.mp4 \
+            demo-zh.gif demo-zh.mp4 code-zh.gif code-zh.mp4 modes-zh.gif modes-zh.mp4; do
             curl --fail --silent --show-error --location --head --retry 3 \
               "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/demos/$media" >/dev/null
           done

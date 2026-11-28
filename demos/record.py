@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Record real XIM input in an isolated Xvfb/D-Bus session."""
 
+import argparse
 import json
 import os
 import select
@@ -14,6 +15,50 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "demos/output"
 OUTPUT.mkdir(parents=True, exist_ok=True)
+SCENES = ("demo", "code", "modes")
+if len(sys.argv) == 1:
+    summary = {"verified": False, "scenes": {}}
+    (OUTPUT / "verification.json").write_text(json.dumps(summary, indent=2))
+    for language in ("en", "zh"):
+        for scene in SCENES:
+            asset = scene if language == "en" else f"{scene}-zh"
+            result = subprocess.run(
+                [sys.executable, __file__, "--scene", scene, "--lang", language],
+                check=False,
+            )
+            report = OUTPUT / f"{asset}-verification.json"
+            if report.exists():
+                summary["scenes"][asset] = json.loads(report.read_text())
+            (OUTPUT / "verification.json").write_text(
+                json.dumps(summary, ensure_ascii=False, indent=2)
+            )
+            if result.returncode:
+                sys.exit(result.returncode)
+    summary["verified"] = all(
+        report["verified"] for report in summary["scenes"].values()
+    )
+    (OUTPUT / "verification.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2)
+    )
+    (OUTPUT / "README.local.md").write_text(
+        "# imselect.nvim demos\n\n"
+        + "\n\n".join(
+            f"## {scene}\n\n![{scene}]({scene}.gif)\n\n[MP4]({scene}.mp4) · [Verification]({scene}-verification.json)"
+            for scene in summary["scenes"]
+        )
+        + "\n"
+    )
+    sys.exit(0)
+if sys.argv[1] != "--session":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--scene", choices=SCENES, required=True)
+    parser.add_argument("--lang", choices=("en", "zh"), default="en")
+    args = parser.parse_args()
+    SCENE, LANGUAGE = args.scene, args.lang
+else:
+    SCENE = os.environ["IMSELECT_DEMO_SCENE"]
+    LANGUAGE = os.environ["IMSELECT_DEMO_LANG"]
+ASSET = SCENE if LANGUAGE == "en" else f"{SCENE}-zh"
 WIDTH, HEIGHT, FPS = 1280, 640, 30
 SIZE = f"{WIDTH}x{HEIGHT}"
 FFMPEG = ("ffmpeg", "-y", "-loglevel", "error")
@@ -44,7 +89,7 @@ def wait_for(description, predicate, seconds=15):
     raise RuntimeError(f"Timed out waiting for {description}")
 
 
-if len(sys.argv) == 1:
+if sys.argv[1] != "--session":
     required = (
         "Xvfb",
         "dbus-run-session",
@@ -72,7 +117,7 @@ if len(sys.argv) == 1:
         sys.exit("Please build the pinned LaTeX parser; see demos/README.md")
     (ROOT / ".dev").mkdir(exist_ok=True)
     session = Path(tempfile.mkdtemp(prefix="imselect-demo-", dir=ROOT / ".dev"))
-    (OUTPUT / "verification.json").write_text(
+    (OUTPUT / f"{ASSET}-verification.json").write_text(
         json.dumps({"verified": False, "session": str(session)})
     )
     env = os.environ.copy()
@@ -85,6 +130,8 @@ if len(sys.argv) == 1:
     env.update(
         {
             "IMSELECT_DEMO_ROOT": str(ROOT),
+            "IMSELECT_DEMO_SCENE": SCENE,
+            "IMSELECT_DEMO_LANG": LANGUAGE,
             "IMSELECT_DEMO_SESSION": str(session),
             "NVIM_LOG_FILE": str(session / "nvim.log"),
             "LC_ALL": "C.UTF-8",
@@ -117,7 +164,7 @@ if len(sys.argv) == 1:
     if result.returncode:
         print((session / "dbus.log").read_text(), file=sys.stderr)
         print(
-            f"Recording failed; inspect {OUTPUT / 'verification.json'} and {session}",
+            f"Recording failed; inspect {OUTPUT / f'{ASSET}-verification.json'} and {session}",
             file=sys.stderr,
         )
     sys.exit(result.returncode)
@@ -157,14 +204,21 @@ rime.mkdir(parents=True)
 socket = session / "nvim.sock"
 processes = []
 logs = []
-evidence = {"verified": False, "session": str(session), "phases": []}
+evidence = {
+    "verified": False,
+    "scene": SCENE,
+    "language": LANGUAGE,
+    "session": str(session),
+    "phases": [],
+    "input": [],
+}
 evidence["versions"] = {
     "neovim": run("nvim", "--version").stdout.splitlines()[0],
     "fcitx": run("fcitx5", "--version").stdout.strip(),
     "screenkey": run("screenkey", "--version").stdout.strip(),
     "font": run("fc-match", "-f", "%{family}: %{file}", "monospace").stdout,
 }
-verification = OUTPUT / "verification.json"
+verification = OUTPUT / f"{ASSET}-verification.json"
 verification.write_text(json.dumps(evidence, indent=2))
 record_started = None
 
@@ -189,7 +243,7 @@ def snapshot():
     )
 
 
-def phase(name, mode, state, text, *, in_text=True, cursor=None):
+def phase(name, mode, state, text, *, in_text=True, cursor=None, row=8, command=None):
     def matches():
         current = snapshot()
         active = run("fcitx5-remote").stdout.strip()
@@ -197,12 +251,13 @@ def phase(name, mode, state, text, *, in_text=True, cursor=None):
         if (
             current["mode"] == mode
             and active == state
-            and current["lines"][7] == text
+            and current["lines"][row - 1] == text
             and current["in_text"] == in_text
             and (cursor is None or current["cursor"] == cursor)
+            and (command is None or current["command"] == command)
         ):
-            assert current["parser"] == "latex", (
-                "the demo must use the real LaTeX parser"
+            assert current["parser"] == ("lua" if SCENE == "code" else "latex"), (
+                "the demo must use the real language parser"
             )
             assert not current["error"], current["error"]
             return {
@@ -213,6 +268,15 @@ def phase(name, mode, state, text, *, in_text=True, cursor=None):
             }
 
     evidence["phases"].append(wait_for(name, matches))
+    run(
+        "nvim",
+        "--server",
+        str(socket),
+        "--remote-expr",
+        f'luaeval("imselect_demo_caption(_A)", {json.dumps(name)})',
+    )
+    if record_started:
+        time.sleep(0.3)
 
 
 def capture(name, seconds):
@@ -221,7 +285,7 @@ def capture(name, seconds):
         "-ss",
         str(seconds),
         "-i",
-        str(OUTPUT / "demo.mp4"),
+        str(OUTPUT / f"{ASSET}.mp4"),
         "-frames:v",
         "1",
         "-threads",
@@ -324,7 +388,13 @@ try:
     )
     (session / "start").touch()
     wait_for("Neovim initialization", lambda: (session / "ready").exists())
-    phase("initial normal", "n", "1", "")
+    phase(
+        "initial normal",
+        "n",
+        "1",
+        'local message = ""' if SCENE == "code" else "",
+        in_text=SCENE != "code",
+    )
 
     screenkey = start(
         "screenkey",
@@ -334,7 +404,7 @@ try:
         "--position",
         "fixed",
         "--geometry",
-        f"480x64+{(WIDTH - 480) // 2}+{HEIGHT - 170}",
+        f"480x64+{(WIDTH - 480) // 2}+{200 if SCENE == 'code' else HEIGHT - 170}",
         "--key-mode",
         "translated",
         "--timeout",
@@ -389,57 +459,165 @@ try:
     )
     record_started = time.monotonic()
     time.sleep(1)
-    run("xdotool", "key", "--clearmodifiers", "i")
-    phase("insert restores IME", "i", "2", "")
-    # Separate action groups in the key overlay; state synchronization uses phase().
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "type", "--clearmodifiers", "--delay", "160", "nihao")
-    time.sleep(1)
-    phase("uncommitted pinyin", "i", "2", "")
-    time.sleep(0.5)
-    run("xdotool", "key", "space")
-    phase("Chinese committed", "i", "2", "你好")
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "type", "--clearmodifiers", "--delay", "160", "$ $")
-    phase("dollar pair typed", "i", "2", "你好$ $", cursor=[8, 9])
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "key", "Left")
-    phase(
-        "math selects ASCII in Insert",
-        "i",
-        "1",
-        "你好$ $",
-        in_text=False,
-        cursor=[8, 8],
-    )
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "type", "--clearmodifiers", "--delay", "160", "x + y")
-    phase("math typed in ASCII", "i", "1", "你好$ x + y$", in_text=False)
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "key", "Right")
-    phase("prose restores IME in Insert", "i", "2", "你好$ x + y$", cursor=[8, 14])
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "type", "--clearmodifiers", "--delay", "160", "shijie")
-    time.sleep(1)
-    run("xdotool", "key", "space")
-    phase("Chinese committed again", "i", "2", "你好$ x + y$世界")
-    time.sleep(KEY_TIMEOUT + 0.2)
-    run("xdotool", "key", "Escape")
-    phase("final normal", "n", "1", "你好$ x + y$世界")
-    syntax_start = next(
-        p for p in evidence["phases"] if p["name"] == "insert restores IME"
-    )
-    syntax_end = next(
-        p for p in evidence["phases"] if p["name"] == "prose restores IME in Insert"
-    )
-    assert not any(
-        event["event"] == "ModeChanged"
-        for event in syntax_end["editor"]["events"][
-            len(syntax_start["editor"]["events"]) :
-        ]
-    ), "syntax switching must not leave Insert mode"
+
+    def key(*keys):
+        evidence["input"].append({"key": list(keys)})
+        run(
+            "xdotool",
+            "key",
+            "--clearmodifiers",
+            "--delay",
+            "100" if keys == ("space",) else "180",
+            *keys,
+        )
+        if keys != ("space",):
+            time.sleep(0.18)
+
+    def type_text(text):
+        evidence["input"].append({"type": text})
+        run("xdotool", "type", "--clearmodifiers", "--delay", "38", text)
+
+    def chinese(pinyin, *, candidates=False):
+        type_text(pinyin)
+        if candidates:
+            phase("uncommitted pinyin", "i", "2", "")
+            time.sleep(0.7)
+        key("space")
+
+    if SCENE == "demo":
+        key("i")
+        phase("insert restores IME", "i", "2", "")
+        chinese("nengliang", candidates=True)
+        phase("Chinese committed", "i", "2", "能量")
+        key("ctrl+j")
+        phase("snippet enters math", "i", "1", "能量$  $", in_text=False)
+        type_text("E = mc^2")
+        phase("math typed in ASCII", "i", "1", "能量$ E = mc^2 $", in_text=False)
+        time.sleep(0.2)
+        key("ctrl+j")
+        phase("prose restores IME in Insert", "i", "2", "能量$ E = mc^2 $")
+        chinese("qizhong")
+        key("ctrl+k")
+        phase(
+            "second formula",
+            "i",
+            "1",
+            r"能量$ E = mc^2 $其中$  \quad \text{ } $",
+            in_text=False,
+        )
+        type_text("m > 0")
+        key("ctrl+j")
+        phase(
+            "text inside math restores IME",
+            "i",
+            "2",
+            r"能量$ E = mc^2 $其中$ m > 0 \quad \text{ } $",
+        )
+        chinese("zhiliang")
+        phase(
+            "nested Chinese",
+            "i",
+            "2",
+            r"能量$ E = mc^2 $其中$ m > 0 \quad \text{ 质量} $",
+        )
+        time.sleep(0.2)
+        key("ctrl+j")
+        chinese("chengli")
+        final = r"能量$ E = mc^2 $其中$ m > 0 \quad \text{ 质量} $成立"
+        phase("Chinese committed again", "i", "2", final)
+        key("Return")
+        chinese("jisuan")
+        key("ctrl+j")
+        phase("third formula", "i", "1", "计算$  $", row=9, in_text=False)
+        type_text(r"\sum_{k=1}^{n} k = \frac{n(n+1)}{2}")
+        phase(
+            "long formula typed",
+            "i",
+            "1",
+            r"计算$ \sum_{k=1}^{n} k = \frac{n(n+1)}{2} $",
+            row=9,
+            in_text=False,
+        )
+        key("ctrl+j")
+        chinese("wancheng")
+        last_line = r"计算$ \sum_{k=1}^{n} k = \frac{n(n+1)}{2} $完成"
+        phase("prose after long formula", "i", "2", last_line, row=9)
+        syntax_start = next(
+            p for p in evidence["phases"] if p["name"] == "insert restores IME"
+        )
+        assert not any(
+            event["event"] == "ModeChanged"
+            for event in snapshot()["events"][len(syntax_start["editor"]["events"]) :]
+        ), "syntax switching must not leave Insert mode"
+        key("Escape")
+        phase("final normal", "n", "1", last_line, row=9)
+    elif SCENE == "code":
+        key("f", "quotedbl", "a")
+        phase("string restores IME", "i", "2", 'local message = ""')
+        chinese("jisuan")
+        chinese("wancheng")
+        phase("Chinese string", "i", "2", 'local message = "计算完成"')
+        key("Escape", "j", "A")
+        chinese("jisuan")
+        chinese("jieguo")
+        phase("Chinese comment", "i", "2", "-- 计算结果", row=9)
+        key("Escape", "j", "c", "c")
+        phase("code selects ASCII", "i", "1", "", in_text=False, row=10)
+        type_text("local total = 6 * 7")
+        phase(
+            "code typed in ASCII",
+            "i",
+            "1",
+            "local total = 6 * 7",
+            in_text=False,
+            row=10,
+        )
+        key("Escape", "j", "A")
+        chinese("shuchu")
+        chinese("jieguo")
+        phase("comment restores IME", "i", "2", "-- 输出结果", row=11)
+        key("Escape", "j", "A")
+        type_text(" -- ")
+        phase("new comment restores IME", "i", "2", "print(message, total) -- ", row=12)
+        chinese("jieguo")
+        key("Escape")
+        phase("final normal", "n", "1", "print(message, total) -- 结果", row=12)
+    else:
+        key("i")
+        chinese("nihao", candidates=True)
+        chinese("shijie")
+        phase("Chinese committed", "i", "2", "你好世界")
+        key("Escape")
+        phase("normal selects ASCII", "n", "1", "你好世界")
+        key("slash")
+        type_text("shijie")
+        key("space")
+        phase("forward Chinese search", "c", "2", "你好世界", command="世界")
+        time.sleep(0.7)
+        key("Return")
+        phase("search landed", "n", "1", "世界", row=10, cursor=[10, 0])
+        key("question")
+        type_text("nihao")
+        key("space")
+        phase("backward Chinese search", "c", "2", "世界", row=10, command="你好")
+        time.sleep(0.7)
+        key("Return")
+        phase("backward search landed", "n", "1", "你好", row=9, cursor=[9, 0])
+        key("A")
+        chinese("shijie")
+        phase("editing restores IME again", "i", "2", "你好世界", row=9)
+        key("Escape", "colon")
+        type_text("set number")
+        phase(
+            "Ex command stays ASCII", "c", "1", "你好世界", row=9, command="set number"
+        )
+        key("Return")
+        phase("final normal", "n", "1", "你好世界", row=9)
+        assert snapshot()["number"], "the Ex command must actually execute"
+    # The recorded choreography uses no IME toggle keys or external IME changes.
+    evidence["manual_ime_switches"] = 0
     assert screenkey.poll() is None, "Screenkey stopped during recording"
-    time.sleep(2)
+    time.sleep(1.5)
     recorder.communicate(b"q\n", timeout=10)
     assert recorder.returncode == 0, "recording failed"
     run(
@@ -473,7 +651,7 @@ try:
         "18",
         "-movflags",
         "+faststart",
-        str(OUTPUT / "demo.mp4"),
+        str(OUTPUT / f"{ASSET}.mp4"),
         timeout=90,
     )
     evidence["media"] = json.loads(
@@ -485,7 +663,7 @@ try:
             "stream=codec_name,width,height,r_frame_rate:format=duration,size",
             "-of",
             "json",
-            str(OUTPUT / "demo.mp4"),
+            str(OUTPUT / f"{ASSET}.mp4"),
         ).stdout
     )
     stream = evidence["media"]["streams"][0]
@@ -498,22 +676,24 @@ try:
         f"Unexpected video stream: {stream}"
     )
     assert float(evidence["media"]["format"]["duration"]) > 5, "Recording is too short"
-    for name, marker in (
-        ("candidates.png", "uncommitted pinyin"),
-        ("math.png", "math typed in ASCII"),
-        ("restored.png", "Chinese committed again"),
-        ("final.png", "final normal"),
-    ):
-        capture(
-            name,
-            next(
-                item["seconds"] for item in evidence["phases"] if item["name"] == marker
+    for marker in evidence["phases"]:
+        if marker["name"] in {
+            "uncommitted pinyin",
+            "math typed in ASCII",
+            "nested Chinese",
+            "Chinese string",
+            "new comment restores IME",
+            "forward Chinese search",
+            "backward Chinese search",
+            "final normal",
+        }:
+            capture(
+                f"{ASSET}-{marker['name'].replace(' ', '-')}.png",
+                marker["seconds"] + (1 if marker["name"] == "final normal" else 0.05),
             )
-            + (1.0 if marker == "final normal" else 0.2),
-        )
     filters = "fps=20,scale=1280:-1:flags=lanczos"
     palette = str(session / "palette.png")
-    video = str(OUTPUT / "demo.mp4")
+    video = str(OUTPUT / f"{ASSET}.mp4")
     run(
         *FFMPEG,
         "-i",
@@ -538,11 +718,8 @@ try:
         + "[video];[video][1:v]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle",
         "-loop",
         "0",
-        str(OUTPUT / "demo.gif"),
+        str(OUTPUT / f"{ASSET}.gif"),
         timeout=90,
-    )
-    (OUTPUT / "README.local.md").write_text(
-        "# imselect.nvim demo\n\n![Demo](demo.gif)\n\n[MP4](demo.mp4) · [Verification](verification.json)\n"
     )
     evidence["verified"] = True
 except Exception as error:
@@ -564,4 +741,4 @@ finally:
                 process.wait()
     for log in logs:
         log.close()
-print(f"Verified recording: {OUTPUT / 'demo.mp4'}")
+print(f"Verified recording: {OUTPUT / f'{ASSET}.mp4'}")
