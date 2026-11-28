@@ -97,6 +97,8 @@ Markdown 代码块中，代码使用 ASCII，注释和字符串仍可使用中�
 | 驱动 | 适用环境 | 依赖 |
 | --- | --- | --- |
 | `fcitx` | Linux、macOS | Fcitx 4 或 Fcitx 5 |
+| `dbus` | Linux | Fcitx 5、LuaJIT、`libdbus-1.so.3` |
+| `fcitx_macos_direct` | macOS | Fcitx5 macOS、LuaJIT；系统 libcurl 与 Carbon |
 | `macism` | macOS | `macism` 可执行文件 |
 | `neovide` | Neovide | 无 |
 | `kitty` | 本地或远程 Kitty 会话 | 本地 Kitty watcher |
@@ -154,6 +156,42 @@ require("imselect").setup({
 ```
 
 各驱动的专用选项放在对应模块名下。
+
+### Linux：直接调用 D-Bus
+
+使用 Fcitx 5 时，可以显式选择 `dbus` 驱动：
+
+```lua
+require("imselect").setup({
+    driver = "dbus",
+})
+```
+
+需要带 LuaJIT 的 Neovim 和系统 `libdbus-1.so.3`，无需安装 Lua D-Bus 包。
+它复用会话总线连接，省去每次调用 `fcitx5-remote` 的进程开销，保存和恢复输入法开关。
+调用同步等待回复，超时为 1 秒；不支持 Fcitx 4，也不自动参与驱动选择。
+SSH 会话应继续使用本地 Kitty watcher。
+
+### macOS：Fcitx5 直接通信（实验性）
+
+Fcitx5 macOS 使用 HTTP，而不是 D-Bus。此实验性驱动绕过命令行 wrapper，
+旨在降低调用开销，需要显式选择：
+
+```lua
+require("imselect").setup({
+    driver = "fcitx_macos_direct",
+})
+```
+
+通过系统 libcurl 调用 Fcitx5 的 HTTP 接口，用 Carbon 检查当前系统输入源，
+省去 `fcitx5-remote`、`fcitx5-curl`、`curl` 和 `get_im` 的进程启动。
+默认驱动选择不变，无需安装额外库。
+
+与上游脚本一样，读取 `~/.config/fcitx5/conf/beast.conf`，支持 Unix socket 和本机 TCP；
+没有配置时使用 `/tmp/fcitx5.sock`。配置在初始化时读取，修改后需重启 Neovim。
+同步请求超时为 1 秒。当前上游服务端每次请求后关闭连接，因此只复用 libcurl 句柄。
+此驱动尚待 macOS 实机验证与性能测量。它直接依赖 Beast HTTP API，
+可能受 Fcitx5 macOS 版本变化影响；遇到兼容问题时可改用 `fcitx`。
 
 ### macOS
 

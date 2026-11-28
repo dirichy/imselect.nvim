@@ -97,6 +97,8 @@ Context detection depends on the language parser; incomplete syntax can affect t
 | Driver | Environment | Requirements |
 | --- | --- | --- |
 | `fcitx` | Linux, macOS | Fcitx 4 or Fcitx 5 |
+| `dbus` | Linux | Fcitx 5, LuaJIT, `libdbus-1.so.3` |
+| `fcitx_macos_direct` | macOS | Fcitx5 macOS, LuaJIT; system libcurl and Carbon |
 | `macism` | macOS | `macism` executable |
 | `neovide` | Neovide | None |
 | `kitty` | Local or remote Kitty sessions | Local Kitty watcher |
@@ -154,6 +156,45 @@ require("imselect").setup({
 ```
 
 Driver-specific options are configured under their corresponding module names.
+
+### Linux: direct D-Bus
+
+With Fcitx 5, select the `dbus` driver explicitly:
+
+```lua
+require("imselect").setup({
+    driver = "dbus",
+})
+```
+
+Requires Neovim with LuaJIT and the system `libdbus-1.so.3`; no Lua D-Bus package
+is needed. It reuses a session bus connection, avoiding the process overhead of
+`fcitx5-remote`, and saves/restores the input method's active state. Calls wait
+synchronously for a reply with a one-second timeout. Fcitx 4 is unsupported;
+automatic driver selection is unchanged. Use the local Kitty watcher over SSH.
+
+### macOS: direct Fcitx5 communication (experimental)
+
+Fcitx5 macOS uses HTTP rather than D-Bus. This experimental driver bypasses the
+CLI wrappers to reduce call overhead. Select it explicitly:
+
+```lua
+require("imselect").setup({
+    driver = "fcitx_macos_direct",
+})
+```
+
+Uses system libcurl for the Fcitx5 HTTP API and Carbon to check the selected system
+input source, avoiding the `fcitx5-remote`, `fcitx5-curl`, `curl`, and `get_im`
+processes. Automatic driver selection is unchanged; no extra libraries are needed.
+
+Like the upstream script, reads `~/.config/fcitx5/conf/beast.conf` for Unix socket
+or local TCP settings, defaulting to `/tmp/fcitx5.sock`. Configuration is read at
+setup; restart Neovim after changing it. Synchronous requests time out after one
+second. The upstream server currently closes each connection, so only the libcurl
+handle is reused. Native macOS validation and performance measurements are still
+pending. It depends directly on the Beast HTTP API, which may change between
+Fcitx5 macOS versions. Use `fcitx` if compatibility issues arise.
 
 ### macOS
 
