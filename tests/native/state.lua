@@ -1,7 +1,7 @@
 -- Run inside a real terminal. The observer uses OS tools, never driver.get_state().
 vim.defer_fn(function()
 	local name = assert(vim.env.IMSELECT_TEST_DRIVER, "IMSELECT_TEST_DRIVER is required")
-	local observer = vim.json.decode(assert(vim.env.IMSELECT_TEST_OBSERVER, "observer command is required"))
+	local observer = vim.json.decode((assert(vim.env.IMSELECT_TEST_OBSERVER, "observer command is required")))
 	local function observe(action)
 		local args = vim.list_extend(vim.deepcopy(observer), { action or "get" })
 		local result = vim.system(args, { text = true, timeout = 15000 }):wait()

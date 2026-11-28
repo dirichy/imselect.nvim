@@ -11,9 +11,12 @@ $env:IMSELECT_TEST_OBSERVER = ConvertTo-Json -Compress @('powershell.exe', '-NoP
 $env:IMSELECT_TEST_REPORT = $report
 if ($Driver -eq 'wsl') {
     # The Linux Neovim and Windows PowerShell communicate through genuine WSL interop.
-    $linuxRoot = (& wsl.exe -d imselect-test -- wslpath -a $root).Trim()
-    $linuxReport = (& wsl.exe -d imselect-test -- wslpath -a $report).Trim()
+    $linuxRoot = & wsl.exe -d imselect-test --exec wslpath -a $root.Replace('\', '/')
+    if ($LASTEXITCODE -ne 0 -or -not $linuxRoot) { throw 'Cannot translate the checkout path into WSL' }
+    $linuxRoot = $linuxRoot.Trim()
+    $linuxReport = & wsl.exe -d imselect-test --exec wslpath -a $report.Replace('\', '/')
     if ($LASTEXITCODE -ne 0) { throw 'Cannot translate the checkout path into WSL' }
+    $linuxReport = $linuxReport.Trim()
     $env:WSLENV = 'IMSELECT_TEST_DRIVER:IMSELECT_TEST_OBSERVER:IMSELECT_TEST_REPORT'
     $env:IMSELECT_TEST_REPORT = $linuxReport
     $process = Start-Process -PassThru wsl.exe -ArgumentList @('-d', 'imselect-test', '--cd', "`"$linuxRoot`"", '--', 'nvim', '-n', '-i', 'NONE', '-u', 'NONE', '-c', '"luafile tests/native/state.lua"')
