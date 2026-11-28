@@ -224,8 +224,10 @@ try:
     lua('vim.cmd("startinsert"); return true')
     wait("Insert mode", lambda: lua("return vim.api.nvim_get_mode().mode") == "i")
     run("fcitx5-remote", "-s", "rime")
-    run("fcitx5-remote", "-o")
-    wait("active Rime", lambda: run("fcitx5-remote") == "2")
+    run("fcitx5-remote", "-c")
+    wait("inactive IME before user activation", lambda: run("fcitx5-remote") == "1")
+    run("xdotool", "key", "--clearmodifiers", "ctrl+space")
+    wait("active Rime after user activation", lambda: run("fcitx5-remote") == "2")
     wait(
         "Rime schema deployment",
         lambda: (rime / "build/luna_pinyin_simp.prism.bin").exists(),

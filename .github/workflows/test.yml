@@ -116,6 +116,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/nvim-macos-$arch/bin" >> "$GITHUB_PATH"
           brew tap laishulu/homebrew
+          brew trust --formula laishulu/homebrew/macism
           brew install macism
           swiftc tests/native/macos-control.swift -o "$RUNNER_TEMP/input-source"
       - name: Switch and restore real input sources
