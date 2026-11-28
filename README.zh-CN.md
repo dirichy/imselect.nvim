@@ -97,7 +97,7 @@ Markdown 代码块中，代码使用 ASCII，注释和字符串仍可使用中�
 | 驱动 | 适用环境 | 依赖 |
 | --- | --- | --- |
 | `fcitx` | Linux、macOS | Fcitx 4 或 Fcitx 5 |
-| `dbus` | Linux | Fcitx 5、LuaJIT、`libdbus-1.so.3` |
+| `fcitx_dbus` | Linux | Fcitx 5、LuaJIT、`libdbus-1.so.3` |
 | `fcitx_macos_direct` | macOS | Fcitx5 macOS、LuaJIT；系统 libcurl 与 Carbon |
 | `macism` | macOS | `macism` 可执行文件 |
 | `neovide` | Neovide | 无 |
@@ -159,11 +159,12 @@ require("imselect").setup({
 
 ### Linux：直接调用 D-Bus
 
-使用 Fcitx 5 时，可以显式选择 `dbus` 驱动：
+Linux 使用 Fcitx 5 时，`fcitx_dbus` 是命令行 `fcitx` 驱动的更快替代方案，
+保留相同的输入法开关与恢复行为。需要显式选择：
 
 ```lua
 require("imselect").setup({
-    driver = "dbus",
+    driver = "fcitx_dbus",
 })
 ```
 

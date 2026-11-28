@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        driver: [fcitx, dbus, kitty, neovide]
+        driver: [fcitx, fcitx_dbus, kitty, neovide]
     steps:
       - uses: actions/checkout@v4.2.2
         with:

@@ -5,7 +5,7 @@ local dbus, connection
 
 M.setup = util.once(function()
 	if ffi.os ~= "Linux" then
-		error("imselect: dbus requires Linux Neovim with LuaJIT and libdbus-1")
+		error("imselect: fcitx_dbus requires Linux Neovim with LuaJIT and libdbus-1")
 	end
 	ffi.cdef([[
 		typedef struct DBusConnection DBusConnection;

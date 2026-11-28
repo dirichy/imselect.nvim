@@ -55,7 +55,7 @@ IME 输入。由系统观察器读取实际状态；Neovide 额外验证英文�
 | Driver | Native environment / 原生环境 | Entry / 入口 |
 | --- | --- | --- |
 | `fcitx` | Fcitx5 + Rime + xterm | `python3 tests/native/linux.py fcitx` |
-| `dbus` | Fcitx5 + Rime + xterm + libdbus-1 | `python3 tests/native/linux.py dbus` |
+| `fcitx_dbus` | Fcitx5 + Rime + xterm + libdbus-1 | `python3 tests/native/linux.py fcitx_dbus` |
 | `kitty` | Kitty + the documented watcher + Fcitx5 / 文档中的 watcher | `python3 tests/native/linux.py kitty` |
 | `neovide` | Actual Neovide + Fcitx5 / 真实 Neovide | `python3 tests/native/linux.py neovide` |
 | `macism` | macOS built-in ABC/Pinyin + macism / 系统 ABC 与拼音 | `tests/native/state.lua`, `macos-control.swift` |

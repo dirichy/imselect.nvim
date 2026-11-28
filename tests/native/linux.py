@@ -33,9 +33,9 @@ def wait(description, predicate):
 if sys.argv[1:2] != ["--session"]:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "drivers", nargs="*", choices=("fcitx", "dbus", "kitty", "neovide")
+        "drivers", nargs="*", choices=("fcitx", "fcitx_dbus", "kitty", "neovide")
     )
-    drivers = parser.parse_args().drivers or ["fcitx", "dbus", "kitty", "neovide"]
+    drivers = parser.parse_args().drivers or ["fcitx", "fcitx_dbus", "kitty", "neovide"]
     required = (
         "Xvfb",
         "dbus-run-session",
@@ -44,7 +44,7 @@ if sys.argv[1:2] != ["--session"]:
         "rime_deployer",
         "xdotool",
         "nvim",
-        *("xterm" if name in ("fcitx", "dbus") else name for name in drivers),
+        *("xterm" if name in ("fcitx", "fcitx_dbus") else name for name in drivers),
     )
     missing = [name for name in required if not shutil.which(name)]
     if missing:

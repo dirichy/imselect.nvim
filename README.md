@@ -97,7 +97,7 @@ Context detection depends on the language parser; incomplete syntax can affect t
 | Driver | Environment | Requirements |
 | --- | --- | --- |
 | `fcitx` | Linux, macOS | Fcitx 4 or Fcitx 5 |
-| `dbus` | Linux | Fcitx 5, LuaJIT, `libdbus-1.so.3` |
+| `fcitx_dbus` | Linux | Fcitx 5, LuaJIT, `libdbus-1.so.3` |
 | `fcitx_macos_direct` | macOS | Fcitx5 macOS, LuaJIT; system libcurl and Carbon |
 | `macism` | macOS | `macism` executable |
 | `neovide` | Neovide | None |
@@ -159,11 +159,12 @@ Driver-specific options are configured under their corresponding module names.
 
 ### Linux: direct D-Bus
 
-With Fcitx 5, select the `dbus` driver explicitly:
+On Linux with Fcitx 5, `fcitx_dbus` is a faster alternative to the command-based
+`fcitx` driver, with the same active-state switching and restoration. Select it explicitly:
 
 ```lua
 require("imselect").setup({
-    driver = "dbus",
+    driver = "fcitx_dbus",
 })
 ```
 

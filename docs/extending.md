@@ -55,9 +55,9 @@ Or a driver that manages temporary input states directly:
 
 State-based drivers automatically receive the shared state restoration mechanism.
 
-Built-in `neovide`, `kitty`, and `wsl` drivers provide `temp_ascii`/`restore` directly. Neovide disables/re-enables IME input without saving the gate state; Kitty delegates temporary switching and restoration to its external controller. WSL delegates state ownership to a persistent PowerShell worker, including IME open status and conversion mode; its asynchronous transport serializes requests and keeps only the latest pending intent. The `fcitx`, `dbus`, `fcitx_macos_direct`, `macism`, `im_select`, and `winime` drivers use the shared state restoration mechanism.
+Built-in `neovide`, `kitty`, and `wsl` drivers provide `temp_ascii`/`restore` directly. Neovide disables/re-enables IME input without saving the gate state; Kitty delegates temporary switching and restoration to its external controller. WSL delegates state ownership to a persistent PowerShell worker, including IME open status and conversion mode; its asynchronous transport serializes requests and keeps only the latest pending intent. The `fcitx`, `fcitx_dbus`, `fcitx_macos_direct`, `macism`, `im_select`, and `winime` drivers use the shared state restoration mechanism.
 
-The Linux `dbus` driver uses LuaJIT FFI and a private libdbus session connection.
+The Linux `fcitx_dbus` driver uses LuaJIT FFI and a private libdbus session connection.
 It calls Fcitx 5 Controller1 `State`/`Activate`/`Deactivate`, matching `fcitx5-remote`.
 The driver owns connection cleanup and reconnects after a bus disconnect on the next call;
 Fcitx restarts use the same well-known service name. Errors propagate to the caller,
@@ -135,9 +135,9 @@ require("imselect").setup({
 
 基于状态的驱动会自动接入公共状态恢复机制。
 
-内置的 `neovide`、`kitty` 和 `wsl` 驱动直接提供 `temp_ascii`/`restore`。Neovide 关闭／重新允许 IME 输入，不保存开关状态；Kitty 将临时切换与恢复交给外部控制器。WSL 由常驻 PowerShell 进程保存 IME 开关和转换状态，异步传输串行处理请求，只保留最新的待处理意图。`fcitx`、`dbus`、`fcitx_macos_direct`、`macism`、`im_select` 和 `winime` 驱动使用公共状态恢复机制。
+内置的 `neovide`、`kitty` 和 `wsl` 驱动直接提供 `temp_ascii`/`restore`。Neovide 关闭／重新允许 IME 输入，不保存开关状态；Kitty 将临时切换与恢复交给外部控制器。WSL 由常驻 PowerShell 进程保存 IME 开关和转换状态，异步传输串行处理请求，只保留最新的待处理意图。`fcitx`、`fcitx_dbus`、`fcitx_macos_direct`、`macism`、`im_select` 和 `winime` 驱动使用公共状态恢复机制。
 
-Linux `dbus` 驱动通过 LuaJIT FFI 复用私有 libdbus 会话连接，调用 Fcitx 5
+Linux `fcitx_dbus` 驱动通过 LuaJIT FFI 复用私有 libdbus 会话连接，调用 Fcitx 5
 Controller1 的 `State`／`Activate`／`Deactivate`，与 `fcitx5-remote` 语义一致。
 连接由驱动清理；总线断开后在下次调用时重连，Fcitx 重启通过固定服务名重新定位。
 错误向调用方传播，同步调用等待回复的超时为 1000 ms，无需接入事件循环或缓存状态。
