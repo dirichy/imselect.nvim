@@ -101,6 +101,22 @@ actual state: ASCII preserves the existing restoration cache; a manual non-ASCII
 choice updates that cache before temporarily selecting ASCII again. This does not
 listen to every system input-method change.
 
+## 语法分类 / Syntax classification
+
+默认策略根据 Tree-sitter 节点类型判断插入点。未识别的节点继承最近的已分类祖先；
+没有匹配分类时使用 ASCII。注入语言分别使用对应的分类规则。未完成语法的结果取决于
+parser 当前生成的树。缺少可用 parser 或解析失败时，退回仅按模式切换。
+
+The default strategy classifies the insertion point by Tree-sitter node type.
+Unrecognized nodes inherit the nearest classified ancestor; with no match, they
+use ASCII. Injected languages use their own classification rules. Incomplete syntax
+follows the parser's current tree. Unavailable parsers or parse failures fall back
+to mode-aware switching.
+
+具体节点规则与边界处理见 [syntax.lua](../lua/imselect/syntax.lua)。
+
+See [syntax.lua](../lua/imselect/syntax.lua) for node rules and boundary handling.
+
 ## 与带 ID 请求的关系 / Relationship to requests with IDs
 
 两步处理决定控制端何时发出什么请求；ID 用于接收端协调多个控制者的请求。
