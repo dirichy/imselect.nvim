@@ -1,0 +1,192 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, 'dev/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NVIM_VERSION: v0.12.6
+  NVIM_LINUX_SHA256: 474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87
+
+jobs:
+  regression:
+    name: Editing behavior (mock driver)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Neovim
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" "https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/nvim-linux-x86_64.tar.gz"
+          echo "$NVIM_LINUX_SHA256  $RUNNER_TEMP/nvim.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@v4.2.2
+        with:
+          repository: latex-lsp/tree-sitter-latex
+          ref: fa8df448fc2c0192a8c2f8cfc97de53cb2b4ecb9
+          path: .dev/tree-sitter-latex
+          persist-credentials: false
+      - name: Build LaTeX parser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tree-sitter" --no-audit --no-fund tree-sitter-cli@0.26.9
+          (cd .dev/tree-sitter-latex && "$RUNNER_TEMP/tree-sitter/node_modules/.bin/tree-sitter" generate)
+          mkdir -p .dev/latex/parser
+          cc -O2 -shared -fPIC -I .dev/tree-sitter-latex/src .dev/tree-sitter-latex/src/parser.c .dev/tree-sitter-latex/src/scanner.c -o .dev/latex/parser/latex.so
+      - name: Run regression scenarios
+        env:
+          NVIM_LOG_FILE: ${{ runner.temp }}/nvim.log
+          LUA_PATH: "./?.lua;;"
+        run: |
+          export XDG_DATA_HOME="$RUNNER_TEMP/data"
+          mkdir -p "$XDG_DATA_HOME/nvim/site/parser"
+          cp .dev/latex/parser/latex.so "$XDG_DATA_HOME/nvim/site/parser/"
+          for test in tests/*.lua; do
+            nvim --headless -u NONE -i NONE -l "$test" || exit 1
+          done
+
+  linux:
+    name: Native ${{ matrix.driver }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        driver: [fcitx, dbus, kitty, neovide]
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install desktop, input method and clients
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb dbus-x11 xterm kitty \
+            fcitx5 fcitx5-module-xorg fcitx5-rime rime-data-luna-pinyin librime-bin \
+            xdotool fonts-dejavu-core fonts-noto-cjk libegl1 libgl1-mesa-dri libxkbcommon-x11-0
+          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" "https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/nvim-linux-x86_64.tar.gz"
+          echo "$NVIM_LINUX_SHA256  $RUNNER_TEMP/nvim.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+          curl -fsSL -o "$RUNNER_TEMP/neovide.tar.gz" https://github.com/neovide/neovide/releases/download/0.17.2/neovide-linux-x86_64.tar.gz
+          echo "73e2d96aa7efd40cffc2600c1d017f73fb0ce554683a3f3a18fa5f812c5c2b0f  $RUNNER_TEMP/neovide.tar.gz" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/neovide"
+          tar -xzf "$RUNNER_TEMP/neovide.tar.gz" -C "$RUNNER_TEMP/neovide"
+          echo "$RUNNER_TEMP/neovide" >> "$GITHUB_PATH"
+      - name: Test real drivers without mode or syntax policies
+        run: python3 tests/native/linux.py "${{ matrix.driver }}"
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: native-linux-${{ matrix.driver }}
+          path: |
+            .dev/native/*/*.json
+            .dev/native/*/*.log
+          include-hidden-files: true
+          if-no-files-found: error
+
+  macos:
+    name: Native macism
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - name: Install Neovim and macism
+        run: |
+          arch="$(uname -m)"
+          case "$arch" in
+            arm64) sha=1dbd148222b051ba6c307c4d17a318ed083df018a4f6a5a0ce46955ffc9ab87b ;;
+            x86_64) sha=481424f1dbc85f637d57e47d27d042aa9c883e5a4fe9ee64fc4ee9573b221998 ;;
+            *) exit 1 ;;
+          esac
+          curl -fsSL -o "$RUNNER_TEMP/nvim.tar.gz" "https://github.com/neovim/neovim/releases/download/$NVIM_VERSION/nvim-macos-$arch.tar.gz"
+          echo "$sha  $RUNNER_TEMP/nvim.tar.gz" | shasum -a 256 -c -
+          tar -xzf "$RUNNER_TEMP/nvim.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/nvim-macos-$arch/bin" >> "$GITHUB_PATH"
+          brew tap laishulu/homebrew
+          brew install macism
+          swiftc tests/native/macos-control.swift -o "$RUNNER_TEMP/input-source"
+      - name: Switch and restore real input sources
+        env:
+          IMSELECT_TEST_DRIVER: macism
+        run: |
+          mkdir -p .dev/native
+          export IMSELECT_TEST_OBSERVER="[\"$RUNNER_TEMP/input-source\"]"
+          export IMSELECT_TEST_REPORT="$PWD/.dev/native/macism.json"
+          nvim --headless -u NONE -i NONE -c 'luafile tests/native/state.lua'
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: native-macos-results
+          path: .dev/native/*.json
+          include-hidden-files: true
+          if-no-files-found: error
+
+  windows:
+    name: Native ${{ matrix.driver }}
+    runs-on: windows-2025
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        driver: [im_select, winime, wsl]
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4.2.2
+        with:
+          repository: daipeihust/im-select
+          ref: 9cd5278b185a9d6daa12ba35471ec2cc1a2e3012
+          path: .dev/im-select
+          persist-credentials: false
+      - name: Install Neovim and Chinese input method
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'nvim.zip'
+          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/$env:NVIM_VERSION/nvim-win64.zip" -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '4e12b7103b601ffc8f25954b4da100f339faa73dccb69a5b135e897fa3d893ed') { throw 'Neovim checksum mismatch' }
+          Expand-Archive $archive -DestinationPath $env:RUNNER_TEMP
+          "$env:RUNNER_TEMP/nvim-win64/bin" >> $env:GITHUB_PATH
+          "$pwd/.dev/im-select/win/out/x64" >> $env:GITHUB_PATH
+          $capability = Add-WindowsCapability -Online -Name 'Language.Basic~~~zh-CN~0.0.1.0'
+          if ($capability.RestartNeeded) { throw 'Chinese IME installation requires a reboot; this runner cannot provide a ready desktop' }
+          $languages = New-WinUserLanguageList 'en-US'
+          $languages.Add('zh-CN')
+          Set-WinUserLanguageList $languages -Force
+      - name: Prepare Ubuntu under WSL1
+        if: matrix.driver == 'wsl'
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'ubuntu.tar.gz'
+          Invoke-WebRequest 'https://cloud-images.ubuntu.com/wsl/releases/24.04/current/ubuntu-noble-wsl-amd64-24.04lts.rootfs.tar.gz' -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne '2a790896740b14d637dbdc583cce1ba081ac53b9e9cdb46dc09a2f73abbd9934') { throw 'Ubuntu checksum mismatch' }
+          wsl.exe --import imselect-test "$env:RUNNER_TEMP/wsl" $archive --version 1
+          if ($LASTEXITCODE -ne 0) { throw 'WSL1 import failed' }
+          wsl.exe -d imselect-test -- bash -lc 'apt-get update && apt-get install -y curl ca-certificates'
+          if ($LASTEXITCODE -ne 0) { throw 'WSL prerequisites failed' }
+          $install = "curl -fsSL -o /tmp/nvim.tar.gz https://github.com/neovim/neovim/releases/download/$env:NVIM_VERSION/nvim-linux-x86_64.tar.gz && echo '$env:NVIM_LINUX_SHA256  /tmp/nvim.tar.gz' | sha256sum -c - && tar -xzf /tmp/nvim.tar.gz -C /opt && ln -s /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim"
+          wsl.exe -d imselect-test -- bash -lc $install
+          if ($LASTEXITCODE -ne 0) { throw 'WSL Neovim installation failed' }
+      - name: Test the real driver
+        run: ./tests/native/windows.ps1 "${{ matrix.driver }}"
+      - uses: actions/upload-artifact@v4.6.2
+        if: always()
+        with:
+          name: native-windows-${{ matrix.driver }}
+          path: .dev/native/*.json
+          include-hidden-files: true
+          if-no-files-found: error
