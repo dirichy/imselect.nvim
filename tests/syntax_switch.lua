@@ -11,7 +11,7 @@ end
 local function wait_state(mode, enabled, message)
 	assert(
 		vim.wait(1000, function()
-			return request("nvim_get_mode").mode == mode and request("nvim_get_var", "neovide_input_ime") == enabled
+			return request("nvim_get_mode").mode == mode and request("nvim_get_var", "imselect_test_input") == enabled
 		end),
 		message
 	)
@@ -24,23 +24,25 @@ local ok, err = pcall(function()
 		vim.env.SSH_TTY = nil
 		vim.env.SSH_CONNECTION = nil
 		vim.env.SSH_CLIENT = nil
-		vim.g.neovide = true
-		vim.g.neovide_input_ime = true
+		package.preload["imselect.driver.test"] = function()
+			return dofile("tests/support/driver.lua")
+		end
+		vim.g.imselect_test_input = true
 		vim.bo.filetype = "lua"
 		vim.api.nvim_buf_set_lines(0, 0, -1, false, { "local value = 1", "-- hello", 'local text = "hello"' })
-		require("imselect").setup()
+		require("imselect").setup({ driver = "test" })
 	]],
 		{}
 	)
 	wait_state("n", false, "Normal mode selects ASCII")
 	request("nvim_input", "i")
 	wait_state("i", false, "Insert in code stays ASCII")
-	request("nvim_set_var", "neovide_input_ime", true)
+	request("nvim_set_var", "imselect_test_input", true)
 	request("nvim_input", "x")
 	assert(vim.wait(1000, function()
 		return request("nvim_get_current_line"):sub(1, 1) == "x"
 	end))
-	assert(request("nvim_get_var", "neovide_input_ime") == true, "typing in code preserves a manual IME choice")
+	assert(request("nvim_get_var", "imselect_test_input") == true, "typing in code preserves a manual IME choice")
 	request(
 		"nvim_exec_lua",
 		[[

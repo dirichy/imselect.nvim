@@ -3,13 +3,14 @@ local child = vim.fn.jobstart(
 	{ rpc = true }
 )
 assert(child > 0)
+---@return any
 local function request(method, ...)
 	return vim.rpcrequest(child, method, ...)
 end
 local function wait_state(mode, enabled)
 	assert(
 		vim.wait(1000, function()
-			return request("nvim_get_mode").mode == mode and request("nvim_get_var", "neovide_input_ime") == enabled
+			return request("nvim_get_mode").mode == mode and request("nvim_get_var", "imselect_test_input") == enabled
 		end),
 		"unexpected mode/input state: " .. mode .. "/" .. tostring(enabled)
 	)
@@ -19,8 +20,10 @@ local ok, err = pcall(function()
 		"nvim_exec_lua",
 		[[
 		vim.opt.rtp:prepend(vim.fn.getcwd())
-		vim.g.neovide = true
-		vim.g.neovide_input_ime = true
+		package.preload["imselect.driver.test"] = function()
+			return dofile("tests/support/driver.lua")
+		end
+		vim.g.imselect_test_input = true
 		vim.g.inspector_calls = 0
 		vim.g.context_enabled = true
 		local inspecter = function(buffer)
@@ -30,6 +33,7 @@ local ok, err = pcall(function()
 			return vim.g.context_enabled
 		end
 		require("imselect").setup({
+			driver = "test",
 			strategy = { strategy_provider = { default = { inspecter = inspecter } } },
 		})
 		assert(require("imselect.strategy.default").inspecter == inspecter)
