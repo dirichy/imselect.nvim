@@ -3,6 +3,7 @@ param(
     [ValidateSet('prepare', 'get')][string]$Action
 )
 $ErrorActionPreference = 'Stop'
+[Console]::Error.WriteLine('observer: Windows PowerShell started')
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;
@@ -44,6 +45,7 @@ public static class NativeInput {
     }
 }
 '@
+[Console]::Error.WriteLine('observer: Windows input APIs loaded')
 $window = [NativeInput]::Focus()
 if ($Action -eq 'prepare') {
     $chinese = [System.Windows.Forms.InputLanguage]::InstalledInputLanguages |

@@ -4,7 +4,7 @@ vim.defer_fn(function()
 	local observer = vim.json.decode((assert(vim.env.IMSELECT_TEST_OBSERVER, "observer command is required")))
 	local function observe(action)
 		local args = vim.list_extend(vim.deepcopy(observer), { action or "get" })
-		local result = vim.system(args, { text = true, timeout = 15000 }):wait()
+		local result = vim.system(args, { text = true, stdin = "", timeout = 15000 }):wait()
 		assert(result.code == 0 and result.signal == 0, "observer failed: " .. vim.inspect(result))
 		return vim.trim(result.stdout)
 	end
