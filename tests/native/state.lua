@@ -24,7 +24,7 @@ vim.defer_fn(function()
 			command = vim.env.IMSELECT_TEST_COMMAND,
 		}))
 		local ascii = name == "wsl" and "0:0" or tostring(driver.ascii_state)
-		assert(original ~= "" and original ~= ascii, "fixture did not select a non-ASCII input method")
+		assert(original ~= "" and original ~= ascii, "fixture did not select a non-ASCII input method: " .. original)
 		driver.temp_ascii()
 		wait_state(ascii)
 		driver.temp_ascii()
@@ -43,5 +43,8 @@ vim.defer_fn(function()
 		{ vim.json.encode({ driver = name, passed = ok, error = ok and vim.NIL or tostring(err) }) },
 		assert(vim.env.IMSELECT_TEST_REPORT)
 	)
+	if not ok then
+		io.stderr:write(tostring(err) .. "\n")
+	end
 	vim.cmd(ok and "qa!" or "cquit 1")
 end, 1000)

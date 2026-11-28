@@ -150,6 +150,19 @@ jobs:
       - uses: actions/checkout@v4.2.2
         with:
           persist-credentials: false
+      - name: Require a foreground desktop for native IME tests
+        run: |
+          Add-Type -TypeDefinition @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class DesktopProbe {
+              [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+          }
+          '@
+          Write-Host "Runner session: $((Get-Process -Id $PID).SessionId)"
+          if ([DesktopProbe]::GetForegroundWindow() -eq [IntPtr]::Zero) {
+            throw 'This runner has no foreground desktop. Native IME tests require a logged-in interactive Windows session.'
+          }
       - uses: actions/checkout@v4.2.2
         with:
           repository: daipeihust/im-select

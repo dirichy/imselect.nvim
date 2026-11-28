@@ -16,5 +16,12 @@ if CommandLine.arguments[1] == "prepare" {
             fatalError("Cannot enable/select input source: \(id)")
         }
     }
+    let deadline = Date().addingTimeInterval(10)
+    while sourceID(TISCopyCurrentKeyboardInputSource().takeRetainedValue()) != "com.apple.inputmethod.SCIM.ITABC" {
+        guard Date() < deadline else {
+            fatalError("Chinese input source did not become active in this desktop session")
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+    }
 }
 print(sourceID(TISCopyCurrentKeyboardInputSource().takeRetainedValue()))
