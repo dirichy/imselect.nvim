@@ -51,12 +51,15 @@ fail = false
 fcitx.restore()
 assert(enabled == true, "failed commands must retain the original state for restoration")
 
-local neovide = util.with_restore(require("imselect.driver.neovide").setup({}))
+local neovide = require("imselect.driver.neovide").setup({})
+local temp_ascii, restore = neovide.temp_ascii, neovide.restore
+assert(util.with_restore(neovide) == neovide)
+assert(neovide.temp_ascii == temp_ascii and neovide.restore == restore)
 for _, state in ipairs({ true, false }) do
 	vim.g.neovide_input_ime = state
 	neovide.temp_ascii()
 	assert(vim.g.neovide_input_ime == false)
 	neovide.restore()
-	assert(vim.g.neovide_input_ime == state)
+	assert(vim.g.neovide_input_ime == true, "restore allows IME input regardless of the previous gate state")
 end
 print("state drivers: OK")
