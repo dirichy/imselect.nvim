@@ -5,7 +5,7 @@ vim.defer_fn(function()
 	local function observe(action)
 		local args = vim.list_extend(vim.deepcopy(observer), { action or "get" })
 		local result = vim.system(args, { text = true, timeout = 15000 }):wait()
-		assert(result.code == 0, result.stderr)
+		assert(result.code == 0 and result.signal == 0, "observer failed: " .. vim.inspect(result))
 		return vim.trim(result.stdout)
 	end
 	local driver, original

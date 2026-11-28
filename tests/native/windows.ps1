@@ -6,6 +6,7 @@ New-Item -ItemType Directory -Force $output | Out-Null
 $report = Join-Path $output "$Driver.json"
 if (Test-Path $report) { Remove-Item $report }
 $control = Join-Path $root 'tests/native/windows-control.ps1'
+$title = "imselect-native-$Driver"
 $env:IMSELECT_TEST_DRIVER = $Driver
 $env:IMSELECT_TEST_OBSERVER = ConvertTo-Json -Compress @('powershell.exe', '-NoProfile', '-NonInteractive', '-File', $control, $Driver)
 $env:IMSELECT_TEST_REPORT = $report
@@ -19,15 +20,15 @@ if ($Driver -eq 'wsl') {
     $linuxReport = $linuxReport.Trim()
     $env:WSLENV = 'IMSELECT_TEST_DRIVER:IMSELECT_TEST_OBSERVER:IMSELECT_TEST_REPORT'
     $env:IMSELECT_TEST_REPORT = $linuxReport
-    $process = Start-Process -PassThru wsl.exe -ArgumentList @('-d', 'imselect-test', '--cd', "`"$linuxRoot`"", '--', 'nvim', '-n', '-i', 'NONE', '-u', 'NONE', '-c', '"luafile tests/native/state.lua"')
+    $process = Start-Process -PassThru wsl.exe -ArgumentList @('-d', 'imselect-test', '--cd', "`"$linuxRoot`"", '--', 'nvim', '-n', '-i', 'NONE', '-u', 'NONE', '--cmd', "`"set title titlestring=$title`"", '-c', '"luafile tests/native/state.lua"')
 } else {
-    $process = Start-Process -PassThru (Get-Command nvim).Source -ArgumentList @('-n', '-i', 'NONE', '-u', 'NONE', '-c', '"luafile tests/native/state.lua"')
+    $process = Start-Process -PassThru (Get-Command nvim).Source -ArgumentList @('-n', '-i', 'NONE', '-u', 'NONE', '--cmd', "`"set title titlestring=$title`"", '-c', '"luafile tests/native/state.lua"')
 }
 try {
     $shell = New-Object -ComObject WScript.Shell
     $focused = $false
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
-        if ($shell.AppActivate($process.Id)) { $focused = $true; break }
+        if ($shell.AppActivate($title)) { $focused = $true; break }
         if ($process.HasExited) { break }
         Start-Sleep -Milliseconds 100
     }

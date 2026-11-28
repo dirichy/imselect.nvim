@@ -44,12 +44,12 @@ executable availability because it tests environment selection, not native suppo
 Native tests call the driver directly, without mode or syntax policies. Each driver
 gets one round trip appropriate to its contract: state-based drivers switch to ASCII
 and restore; Neovide disables and re-enables IME input.
-Actual state comes from an OS observer; Linux also checks literal input and Chinese
-composition in the real client. Loading a module or exiting successfully is not enough.
+Actual state comes from an OS observer. Neovide additionally checks literal input
+and Chinese composition because its contract is an IME input gate. Loading a module or exiting successfully is not enough.
 
 CI 将原生驱动与普通回归分开运行。原生测试直接调用 driver，不加载模式或语法策略。
 每个驱动只测一条符合自身职责的主流程：状态型驱动切英文并恢复；Neovide 禁止并重新允许
-IME 输入。由系统观察器读取实际状态；Linux 还验证真实客户端的英文直输和中文组词。
+IME 输入。由系统观察器读取实际状态；Neovide 额外验证英文直输和中文组词，因为它负责 IME 输入开关。
 仅加载模块或命令退出成功不算通过。
 
 | Driver | Native environment / 原生环境 | Entry / 入口 |
@@ -134,7 +134,10 @@ Local findings / 本地实测发现：
   / Neovide 0.17.4 配合 Fcitx5 5.1.23 已通过 IME 开关测试：关闭时英文直输，重新允许后
   通过正常的 Ctrl+Space 激活键并提交中文。它不负责保存或恢复 Fcitx 状态，之前的失败
   来自测试额外强加的状态恢复要求。
-- macOS and Windows/WSL jobs are prepared but have not been run from this Linux workspace.
-  / macOS 和 Windows/WSL 的工作流已准备，本 Linux 工作区尚不能验证其原生结果。
+- macOS and Windows/WSL jobs have run on hosted CI, but native input switching has
+  not passed there yet. Installation, path forwarding and terminal launch issues
+  are tracked on the development branch; they do not establish driver failures.
+  / macOS 和 Windows/WSL 已在托管 CI 执行，原生输入法切换尚未通过；安装、路径传递及
+  终端启动问题在开发分支处理，不能据此判定 driver 有故障。
 
 Kitty uses `GLFW_IM_MODULE=ibus` as required by the [Fcitx setup guide](https://fcitx-im.org/wiki/Setup_Fcitx_5/en); the fixture waits for its IBus frontend before launching clients. / Kitty 按 Fcitx 官方说明使用 IBus，测试先等待正常前端就绪，再启动客户端。

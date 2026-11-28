@@ -126,7 +126,25 @@ jobs:
           mkdir -p .dev/native
           export IMSELECT_TEST_OBSERVER="[\"$RUNNER_TEMP/input-source\"]"
           export IMSELECT_TEST_REPORT="$PWD/.dev/native/macism.json"
-          nvim --headless -u NONE -i NONE -c 'luafile tests/native/state.lua'
+          script="$RUNNER_TEMP/native-test.command"
+          {
+            printf '#!/bin/bash\n'
+            printf 'cd %q\n' "$PWD"
+            printf 'export PATH=%q\n' "$PATH"
+            printf 'export IMSELECT_TEST_DRIVER=macism\n'
+            printf 'export IMSELECT_TEST_OBSERVER=%q\n' "$IMSELECT_TEST_OBSERVER"
+            printf 'export IMSELECT_TEST_REPORT=%q\n' "$IMSELECT_TEST_REPORT"
+            printf "exec nvim -n -u NONE -i NONE -c 'luafile tests/native/state.lua'\n"
+          } > "$script"
+          chmod +x "$script"
+          open -a Terminal "$script"
+          for ((attempt = 0; attempt < 90; attempt++)); do
+            if test -f "$IMSELECT_TEST_REPORT"; then break; fi
+            sleep 1
+          done
+          test -f "$IMSELECT_TEST_REPORT"
+          cat "$IMSELECT_TEST_REPORT"
+          jq -e '.passed == true' "$IMSELECT_TEST_REPORT"
       - uses: actions/upload-artifact@v4.6.2
         if: always()
         with:

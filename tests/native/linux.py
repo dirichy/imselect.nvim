@@ -228,43 +228,48 @@ try:
     wait("inactive IME before user activation", lambda: run("fcitx5-remote") == "1")
     run("xdotool", "key", "--clearmodifiers", "ctrl+space")
     wait("active Rime after user activation", lambda: run("fcitx5-remote") == "2")
-    wait(
-        "Rime schema deployment",
-        lambda: (rime / "build/luna_pinyin_simp.prism.bin").exists(),
-    )
-    run("xdotool", "type", "--clearmodifiers", "--delay", "100", "nihao ")
-    try:
+    if driver != "neovide":
+        # These drivers promise an input-state change, independently of composition.
+        lua("native_driver.temp_ascii(); native_driver.temp_ascii(); return true")
+        wait("ASCII input state", lambda: run("fcitx5-remote") == "1")
+        lua("native_driver.restore(); return true")
+        wait("original input state restored", lambda: run("fcitx5-remote") == "2")
+        print(driver + ": native input-state round trip OK", flush=True)
+    else:
         wait(
-            "Chinese input works before using the driver",
+            "Rime schema deployment",
+            lambda: (rime / "build/luna_pinyin_simp.prism.bin").exists(),
+        )
+        run("xdotool", "type", "--clearmodifiers", "--delay", "100", "nihao ")
+        try:
+            wait(
+                "Chinese input works before using the driver",
+                lambda: (
+                    lua("return vim.json.encode(vim.api.nvim_get_current_line())")
+                    == json.dumps("你好", ensure_ascii=False)
+                ),
+            )
+        except AssertionError:
+            print(
+                "Baseline text:",
+                lua("return vim.json.encode(vim.api.nvim_get_current_line())"),
+                file=sys.stderr,
+            )
+            raise
+        lua('vim.api.nvim_buf_set_lines(0, 0, -1, false, {""}); return true')
+        # Both calls represent repeated ASCII requirements, not a check of call counts.
+        lua("native_driver.temp_ascii(); native_driver.temp_ascii(); return true")
+        run("xdotool", "type", "--clearmodifiers", "--delay", "100", "nihao ")
+        wait(
+            driver + " literal ASCII input",
             lambda: (
                 lua("return vim.json.encode(vim.api.nvim_get_current_line())")
-                == json.dumps("你好", ensure_ascii=False)
+                == json.dumps("nihao ")
             ),
         )
-    except AssertionError:
-        print(
-            "Baseline text:",
-            lua("return vim.json.encode(vim.api.nvim_get_current_line())"),
-            file=sys.stderr,
+        lua(
+            'vim.api.nvim_buf_set_lines(0, 0, -1, false, {""}); native_driver.restore(); return true'
         )
-        raise
-    lua('vim.api.nvim_buf_set_lines(0, 0, -1, false, {""}); return true')
-    # Both calls represent repeated ASCII requirements, not a check of call counts.
-    lua("native_driver.temp_ascii(); native_driver.temp_ascii(); return true")
-    if driver != "neovide":
-        wait("ASCII input state", lambda: run("fcitx5-remote") == "1")
-    run("xdotool", "type", "--clearmodifiers", "--delay", "100", "nihao ")
-    wait(
-        driver + " literal ASCII input",
-        lambda: (
-            lua("return vim.json.encode(vim.api.nvim_get_current_line())")
-            == json.dumps("nihao ")
-        ),
-    )
-    lua(
-        'vim.api.nvim_buf_set_lines(0, 0, -1, false, {""}); native_driver.restore(); return true'
-    )
-    if driver == "neovide":
         # Exercise the real IME connection with the user's normal activation key.
         # Reopening the gate does not promise to restore the engine's active state.
         run("xdotool", "key", "--clearmodifiers", "ctrl+space")
@@ -272,34 +277,27 @@ try:
             "IME activation key reaches the reopened connection",
             lambda: run("fcitx5-remote") == "2",
         )
-    else:
-        wait("restored Rime", lambda: run("fcitx5-remote") == "2")
-    run("xdotool", "type", "--clearmodifiers", "--delay", "100", "nihao ")
-    try:
-        wait(
-            driver + " Chinese composition",
-            lambda: (
-                lua("return vim.json.encode(vim.api.nvim_get_current_line())")
-                == json.dumps("你好", ensure_ascii=False)
-            ),
-        )
-    except AssertionError:
-        print(
-            "Observed text:",
-            lua("return vim.json.encode(vim.api.nvim_get_current_line())"),
-            "IME:",
-            run("fcitx5-remote"),
-            "engine:",
-            run("fcitx5-remote", "-n"),
-            file=sys.stderr,
-        )
-        raise
-    behavior = (
-        "IME input disabled / re-enabled"
-        if driver == "neovide"
-        else "ASCII / Chinese restoration"
-    )
-    print(driver + ": native " + behavior + " OK", flush=True)
+        run("xdotool", "type", "--clearmodifiers", "--delay", "100", "nihao ")
+        try:
+            wait(
+                driver + " Chinese composition",
+                lambda: (
+                    lua("return vim.json.encode(vim.api.nvim_get_current_line())")
+                    == json.dumps("你好", ensure_ascii=False)
+                ),
+            )
+        except AssertionError:
+            print(
+                "Observed text:",
+                lua("return vim.json.encode(vim.api.nvim_get_current_line())"),
+                "IME:",
+                run("fcitx5-remote"),
+                "engine:",
+                run("fcitx5-remote", "-n"),
+                file=sys.stderr,
+            )
+            raise
+        print(driver + ": native IME input disabled / re-enabled OK", flush=True)
     lua('vim.schedule(function() vim.cmd("qa!") end); return true')
     app.wait(timeout=10)
 finally:
