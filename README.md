@@ -10,9 +10,9 @@ imselect follows **what you are editing**, as well as your mode. It selects ASCI
 
 ![Continuous LaTeX editing with zero manual input method switches](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo.gif)
 
-*Chinese prose → math → prose → Chinese inside `\text{...}` → a summation formula. One continuous Insert session. **0 manual input method switches.** Real fcitx5-rime input, with Neovim's built-in snippets for formula entry and field jumps.*
+*Chinese prose → math → prose → Chinese inside `\text{...}` → a summation formula. One continuous Insert session. **0 manual input method switches.***
 
-[HD video](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo.mp4) · [Reproduce all demos](demos/README.md)
+[HD video](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo.mp4)
 
 ## Beyond switching on Escape
 
@@ -72,7 +72,7 @@ Write a Chinese string, add comments, calculate a value in ASCII, and append ano
 
 ![Chinese strings and comments alongside ASCII Lua code](https://github.com/dirichy/imselect.nvim/releases/download/demos/code.gif)
 
-*Real Chinese composition in strings and comments; ASCII for `local total = 6 * 7`. Even typing `-- ` at the end of a code line restores Chinese input. **0 manual input method switches.*** [HD video](https://github.com/dirichy/imselect.nvim/releases/download/demos/code.mp4)
+*Write Chinese strings and comments, then continue writing code. **0 manual input method switches.*** [HD video](https://github.com/dirichy/imselect.nvim/releases/download/demos/code.mp4)
 
 | Context | Input behavior |
 | --- | --- |

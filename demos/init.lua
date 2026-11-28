@@ -12,45 +12,45 @@ vim.api.nvim_set_hl(0, "Comment", { fg = "#a9b1d6", italic = false })
 vim.opt.swapfile = false
 vim.opt.laststatus = 2
 vim.opt.statusline = " imselect.nvim | "
-	.. (chinese and "手动切换输入法 0 次" or "0 manual IME switches")
+	.. (chinese and "手动切换输入法 0 次" or "0 manual input method switches")
 	.. " %=%{mode() == 'i' ? 'INSERT' : mode() == 'c' ? 'COMMAND' : 'NORMAL'} "
 -- Captions describe observed phases; they never alter input or editor contents.
 local captions = {
-	["initial normal"] = { "Normal mode: ASCII is ready", "普通模式：自动使用英文" },
-	["insert restores IME"] = { "Enter Insert: restore Chinese input", "进入插入模式：恢复中文输入" },
-	["uncommitted pinyin"] = { "Real pinyin composition and candidate popup", "真实拼音组词与候选框" },
+	["initial normal"] = { "Normal mode: English input", "普通模式：自动使用英文" },
+	["insert restores IME"] = { "Start writing in Chinese", "开始输入中文" },
+	["uncommitted pinyin"] = { "Type Chinese", "输入中文" },
 	["Chinese committed"] = {
-		"Keep typing Chinese; no IME shortcut needed",
-		"继续输入中文，无需切换输入法",
+		"Keep typing Chinese",
+		"继续输入中文",
 	},
 	["snippet enters math"] = {
-		"Jump into a formula: ASCII, still in Insert",
-		"跳入公式：自动英文，仍在插入模式",
+		"Jump into a formula: English input",
+		"跳入公式：自动切换英文",
 	},
-	["math typed in ASCII"] = { "Write the formula in ASCII", "用英文输入公式" },
+	["math typed in ASCII"] = { "Write the formula", "用英文输入公式" },
 	["prose restores IME in Insert"] = { "Jump back to prose: Chinese returns", "跳回正文：自动恢复中文" },
-	["second formula"] = { "Another formula: ASCII again", "进入下一段公式：再次自动英文" },
+	["second formula"] = { "Next formula: English input", "进入下一段公式：再次自动英文" },
 	["text inside math restores IME"] = {
-		"Inside math, a text field restores Chinese",
-		"公式中的文本字段：恢复中文输入",
+		"Write Chinese text inside the formula",
+		"公式里的文字，自动使用中文",
 	},
 	["nested Chinese"] = {
-		"Chinese inside the formula, without leaving Insert",
-		"在公式内部输入中文，全程保持插入模式",
+		"Keep writing Chinese inside the formula",
+		"继续输入公式里的中文",
 	},
 	["Chinese committed again"] = { "Back to prose; keep writing", "回到正文，继续写作" },
 	["third formula"] = { "A longer formula: keep typing", "再写一段更长的公式" },
-	["long formula typed"] = { "Summation and fractions, all in ASCII", "求和与分式，全程使用英文输入" },
+	["long formula typed"] = { "Write a sum and a fraction", "求和与分式，全程使用英文输入" },
 	["prose after long formula"] = {
 		"Formula done: Chinese returns automatically",
 		"公式完成：自动恢复中文",
 	},
 	["string restores IME"] = { "Move into a string: restore Chinese", "移入字符串：恢复中文输入" },
-	["Chinese string"] = { "Chinese string entered through the real IME", "通过真实输入法输入中文字符串" },
+	["Chinese string"] = { "Write a Chinese message", "输入中文消息" },
 	["Chinese comment"] = { "Comments use Chinese too", "注释同样自动使用中文" },
-	["code selects ASCII"] = { "Change a code line: ASCII is ready", "修改代码行：自动使用英文" },
+	["code selects ASCII"] = { "Back to code: English input", "修改代码行：自动使用英文" },
 	["code typed in ASCII"] = {
-		"Code uses ASCII; comments can use Chinese",
+		"Write the calculation",
 		"代码使用英文，注释可以使用中文",
 	},
 	["comment restores IME"] = { "Move back to a comment: Chinese returns", "回到注释：自动恢复中文" },
@@ -59,14 +59,14 @@ local captions = {
 		"在代码后输入 --：自动恢复中文",
 	},
 	["normal selects ASCII"] = {
-		"Escape: back to Normal, back to ASCII",
+		"Escape: back to commands",
 		"按 Escape：回到普通模式，自动英文",
 	},
 	["forward Chinese search"] = {
 		"/search: compose Chinese in the search prompt",
 		"正向搜索：直接在搜索栏输入中文",
 	},
-	["search landed"] = { "Enter: find the match and return to ASCII", "按回车：跳到匹配位置，恢复英文" },
+	["search landed"] = { "Enter: jump to the match", "按回车：跳到匹配位置，恢复英文" },
 	["backward Chinese search"] = {
 		"?search: Chinese works in reverse search too",
 		"反向搜索：同样自动恢复中文",
@@ -74,10 +74,13 @@ local captions = {
 	["backward search landed"] = { "Jump to the previous Chinese match", "跳到上一个中文匹配位置" },
 	["editing restores IME again"] = { "Resume editing: Chinese returns", "继续编辑：自动恢复中文" },
 	["Ex command stays ASCII"] = {
-		":commands use ASCII; searches restore Chinese",
+		":commands use English input",
 		"命令使用英文，搜索恢复中文",
 	},
-	["final normal"] = { "All done. 0 manual IME switches.", "以上全部操作，手动切换输入法 0 次。" },
+	["final normal"] = {
+		"All done. 0 manual input method switches.",
+		"以上全部操作，手动切换输入法 0 次。",
+	},
 }
 function _G.imselect_demo_caption(phase)
 	local caption = assert(captions[phase], "missing demo caption: " .. phase)
@@ -95,9 +98,9 @@ vim.bo.filetype = scene == "code" and "lua" or "tex"
 vim.api.nvim_buf_set_name(0, session .. (scene == "code" and "/demo.lua" or "/demo.tex"))
 local lines = scene == "code"
 		and {
-			"-- Code in ASCII. Strings and comments in Chinese.",
-			"-- No input-method hotkeys throughout this recording.",
-			"-- Native editing commands; real fcitx5-rime input.",
+			"",
+			"",
+			"",
 			"",
 			"",
 			"",
@@ -109,11 +112,9 @@ local lines = scene == "code"
 			"print(message, total)",
 		}
 	or {
-		"% Real Chinese input. No manual IME switches.",
-		scene == "demo" and "% Ctrl-J: math snippet / next field; Ctrl-K: math + text"
-			or "% Search restores Chinese; :commands stay in ASCII.",
-		scene == "demo" and "% Neovim built-in snippets; stay in Insert throughout."
-			or "% Esc returns to ASCII. Insert restores Chinese again.",
+		"",
+		"",
+		"",
 		"",
 		"\\documentclass{article}",
 		"\\begin{document}",
@@ -124,25 +125,23 @@ local lines = scene == "code"
 		"",
 		"\\end{document}",
 	}
-if chinese then
-	local prefix = scene == "code" and "-- " or "% "
-	lines[1] = prefix
-		.. (
-			scene == "code" and "代码使用英文，字符串和注释使用中文。"
-			or "真实中文输入，全程无需手动切换输入法。"
-		)
-	lines[2] = prefix
-		.. (
-			scene == "demo" and "Ctrl-J：展开公式或跳字段；Ctrl-K：公式内文本。"
-			or scene == "code" and "使用原生编辑命令，观察输入法自动切换。"
-			or "正反向搜索恢复中文，冒号命令保持英文。"
-		)
-	lines[3] = prefix
-		.. (
-			scene == "demo" and "Neovim 原生 snippet，全程保持插入模式。"
-			or scene == "code" and "真实 fcitx5-rime 组词，无输入法切换快捷键。"
-			or "Escape 切回英文，再次插入恢复中文。"
-		)
+local headings = {
+	demo = {
+		{ "Write Chinese prose and equations in one flow.", "连贯输入中文正文和公式。" },
+		{
+			"Ctrl-J: formula / next field; Ctrl-K: formula with text.",
+			"Ctrl-J：展开公式或跳到下一处；Ctrl-K：带文字的公式。",
+		},
+	},
+	code = {
+		{ "Write Chinese messages and comments alongside code.", "写中文消息和注释，继续写代码。" },
+	},
+	modes = {
+		{ "Write Chinese, search, and run commands.", "输入中文、搜索、执行命令。" },
+	},
+}
+for row, heading in ipairs(headings[scene]) do
+	lines[row] = (scene == "code" and "-- " or "% ") .. heading[chinese and 2 or 1]
 end
 vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
 -- Demo-only snippet mappings; the plugin needs no snippet dependency.

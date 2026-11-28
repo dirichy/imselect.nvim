@@ -10,9 +10,9 @@ imselect 同时关注你的编辑模式和**正在编辑的内容**：代码和�
 
 ![连续编辑 LaTeX，手动切换输入法 0 次](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo-zh.gif)
 
-*中文正文 → 公式 → 正文 → `\text{...}` 中的中文 → 求和公式。全程保持 Insert 模式，**手动切换输入法 0 次**。使用真实 fcitx5-rime 输入，配合 Neovim 原生 snippet 展开公式、跳转字段。*
+*中文正文 → 公式 → 正文 → `\text{...}` 中的中文 → 求和公式。全程保持 Insert 模式，**手动切换输入法 0 次**。*
 
-[高清视频](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo-zh.mp4) · [复现全部演示](demos/README.md)
+[高清视频](https://github.com/dirichy/imselect.nvim/releases/download/demos/demo-zh.mp4)
 
 ## 从按 Escape 切英文，到整个编辑过程
 
@@ -72,7 +72,7 @@ require("imselect").setup()
 
 ![Lua 代码与中文字符串、注释混合编辑](https://github.com/dirichy/imselect.nvim/releases/download/demos/code-zh.gif)
 
-*字符串和注释中真实组词输入中文，`local total = 6 * 7` 使用 ASCII。在代码行尾输入 `-- `，也会自动恢复中文输入。**手动切换输入法 0 次。*** [高清视频](https://github.com/dirichy/imselect.nvim/releases/download/demos/code-zh.mp4)
+*写中文字符串和注释，再继续写代码。**手动切换输入法 0 次。*** [高清视频](https://github.com/dirichy/imselect.nvim/releases/download/demos/code-zh.mp4)
 
 | 上下文 | 输入行为 |
 | --- | --- |
