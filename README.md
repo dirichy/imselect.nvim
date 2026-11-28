@@ -137,6 +137,31 @@ require("imselect").setup({
 
 Omit `driver` to use automatic detection.
 
+### Custom inspectors
+
+Inspectors classify the Insert-mode cursor context: `true` restores input, `false`
+selects ASCII. Selection order is **buffer > filetype > global**, with built-in
+syntax detection as the default.
+
+```lua
+local imselect = require("imselect")
+imselect.setup({
+    inspector = function(bufnr) -- Optional global override.
+        return vim.bo[bufnr].filetype == "text"
+    end,
+})
+
+imselect.set_inspector(function() return true end, { filetype = { "text", "markdown" } })
+imselect.set_inspector(function() return false end, { buffer = true }) -- Current buffer.
+imselect.set_inspector(nil, { buffer = true }) -- Remove the buffer override.
+```
+
+Use `set_inspector(fn)` to change the global inspector. Passing `nil` removes an
+override; removing the global override restores built-in syntax detection. Changes
+take effect on the next update; call `imselect.update()` to apply immediately.
+Buffer inspectors are released on `BufWipeout`. Normal mode and command-line
+behavior remain governed by the [mode rules](#mode-aware-switching).
+
 ### Custom driver selection
 
 The `driver` option also accepts a function returning a driver name, or `false` / `nil` to skip initialization.
@@ -287,7 +312,7 @@ require("imselect").setup({
 
 ## Documentation and development
 
-- [Custom strategies and drivers](docs/extending.md)
+- [Custom inspectors and drivers](docs/extending.md)
 - [Input method state design](docs/input-state.md)
 - [Regression tests](tests/README.md)
 - [Demo recording and verification](demos/README.md)

@@ -137,6 +137,28 @@ require("imselect").setup({
 
 省略 `driver` 即可使用自动检测。
 
+### 自定义 inspector
+
+Inspector 判断 Insert 模式下的光标上下文：`true` 恢复输入法，`false` 使用 ASCII。
+选择顺序为 **buffer > filetype > global**，默认使用内置语法判断。
+
+```lua
+local imselect = require("imselect")
+imselect.setup({
+    inspector = function(bufnr) -- 可选的全局覆盖。
+        return vim.bo[bufnr].filetype == "text"
+    end,
+})
+
+imselect.set_inspector(function() return true end, { filetype = { "text", "markdown" } })
+imselect.set_inspector(function() return false end, { buffer = true }) -- 当前 buffer。
+imselect.set_inspector(nil, { buffer = true }) -- 移除 buffer 覆盖。
+```
+
+通过 `set_inspector(fn)` 修改全局 inspector。传入 `nil` 移除对应覆盖；移除全局覆盖后，
+恢复内置语法判断。修改在下次更新时生效，需要立即应用可调用 `imselect.update()`。
+Buffer inspector 在 `BufWipeout` 时释放。普通模式和命令行仍遵循[模式规则](#按模式切换)。
+
 ### 自定义驱动选择
 
 `driver` 也可以是函数：返回驱动名称即可启用，返回 `false` 或 `nil` 则跳过初始化。
@@ -283,7 +305,7 @@ require("imselect").setup({
 
 ## 文档与开发
 
-- [自定义策略与驱动](docs/extending.md)
+- [自定义 inspector 与驱动](docs/extending.md)
 - [输入法状态设计](docs/input-state.md)
 - [回归测试](tests/README.md)
 - [演示录制与验证](demos/README.md)

@@ -20,15 +20,14 @@ Each retained file has a distinct reason / 每个文件保留的理由：
 
 | Test | User scenario / 使用场景 |
 | --- | --- |
-| `default_strategy.lua` | Insert, completion, search and Ex commands use the right policy / 插入、补全、搜索和 Ex 命令的策略不同 |
+| `modes.lua` | Insert, completion, search and Ex commands use the right policy / 插入、补全、搜索和 Ex 命令的策略不同 |
 | `syntax_switch.lua` | Moving/editing across text and code, including manual IME choices / 跨语法边界移动或编辑，以及手动选择输入法 |
 | `syntax.lua` | Quotes, interpolation, injections and incomplete code / 引号、插值、注入语言和未完成代码的边界 |
 | `syntax_latex.lua` | Prose, formulas and text within formulas / 正文、公式和公式内文本 |
-| `buffer_switch.lua` | Switching between buffers with different policies / 在不同策略的 buffer 间切换 |
+| `buffer_switch.lua` | Switching buffers/filetypes updates input and preserves buffer overrides / 切换 buffer 或 filetype 更新输入法，保留 buffer 覆盖 |
 | `restore.lua` | Repeated ASCII requests, manual changes and retry after a failed restore / 重复请求、手动选择及恢复失败重试 |
 | `driver_selection.lua` | Selecting a usable driver and respecting user overrides / 选择可用驱动并尊重用户配置 |
-| `strategy_apply.lua` | A custom strategy can decline and fall back / 自定义策略可以放弃，让后续策略处理 |
-| `strategy_priority.lua` | Registered strategies respect priority / 后注册的策略按优先级生效 |
+| `inspector.lua` | Scoped overrides, removal and buffer closure collection / 三层覆盖、移除和 buffer 闭包回收 |
 | `run.lua` | External commands fail, time out or finish asynchronously / 外部命令失败、超时和异步完成 |
 
 Removed adapter mocks that repeated command arguments, private protocol details,

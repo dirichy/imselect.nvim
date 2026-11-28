@@ -26,7 +26,7 @@ local ok, err = pcall(function()
 		vim.g.imselect_test_input = true
 		vim.g.inspector_calls = 0
 		vim.g.context_enabled = true
-		local inspecter = function(buffer)
+		local inspector = function(buffer)
 			assert(buffer == vim.api.nvim_get_current_buf())
 			assert(vim.api.nvim_get_mode().mode:sub(1, 1) == "i", "custom inspectors only run in Insert")
 			vim.g.inspector_calls = vim.g.inspector_calls + 1
@@ -34,9 +34,8 @@ local ok, err = pcall(function()
 		end
 		require("imselect").setup({
 			driver = "test",
-			strategy = { strategy_provider = { default = { inspecter = inspecter } } },
+			inspector = inspector,
 		})
-		assert(require("imselect.strategy.default").inspecter == inspecter)
 	]],
 		{}
 	)
@@ -83,4 +82,4 @@ local ok, err = pcall(function()
 end)
 vim.fn.jobstop(child)
 assert(ok, err)
-print("default strategy: OK")
+print("modes: OK")

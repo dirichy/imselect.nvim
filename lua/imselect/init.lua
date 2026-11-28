@@ -1,5 +1,5 @@
 local M = {}
-local strategy = require("imselect.strategy.init")
+local inspector = require("imselect.inspector")
 local util = require("imselect.util")
 local prev_cond, prev_mode_ascii
 vim.g.imselect_enabled = true
@@ -32,28 +32,17 @@ local default_opts = {
 		end
 	end,
 	focus_event = false,
+	---@type Imselect.Inspector?
+	inspector = nil,
 }
 
----@type table<number,function>
-local inspecters = {}
---- set inspecter for a buffer
----@param buffer number
----@param fn function
-function M.set_inspecter(buffer, fn)
-	inspecters[buffer] = fn
-	return true
-end
+M.set_inspector = inspector.set
 --- to determine whether to enable im
 --- this function will be called rapidly so it can't be too heavy.
 --- @return boolean
 function M.inspect()
 	local buffer = vim.api.nvim_win_get_buf(0)
-	return inspecters[buffer] and inspecters[buffer](buffer)
-end
-
-local function apply_buffer_strategy(buffer)
-	inspecters[buffer] = nil
-	strategy.apply(buffer)
+	return inspector.inspect(buffer)
 end
 
 local function update_driver(force)
@@ -96,25 +85,21 @@ M.setup = util.once(function(opts)
 	if not driver_name then
 		return
 	end
-	strategy.setup(opts.strategy or {})
+	if opts.inspector ~= nil then
+		M.set_inspector(opts.inspector)
+	end
 	---@type Imselect.Driver
 	M.driver = util.with_restore(require("imselect.driver." .. driver_name).setup(opts[driver_name] or {}))
-	apply_buffer_strategy(vim.api.nvim_win_get_buf(0))
 	M.update(true)
 	vim.api.nvim_create_autocmd({ "BufEnter" }, {
-		callback = function(event)
-			local buffer = event.buf
-			if not inspecters[buffer] then
-				strategy.apply(buffer)
-			end
+		callback = function()
 			vim.schedule(function()
 				M.update()
 			end)
 		end,
 	})
 	vim.api.nvim_create_autocmd({ "FileType" }, {
-		callback = function(event)
-			apply_buffer_strategy(event.buf)
+		callback = function()
 			vim.schedule(function()
 				M.update(true)
 			end)

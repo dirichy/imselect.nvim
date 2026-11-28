@@ -5,23 +5,17 @@
 Input method control and editing-context classification are independent.
 
 - A **driver** determines how to control the input method.
-- A **strategy** determines when the current Insert-mode context should use ASCII or restore input.
+- An **inspector** determines when the current Insert-mode context should use ASCII or restore input.
 
-### Custom strategies
+### Custom inspectors
 
 Override the default cursor inspector:
 
 ```lua
 require("imselect").setup({
-    strategy = {
-        strategy_provider = {
-            default = {
-                inspecter = function(bufnr)
-                    return vim.bo[bufnr].filetype == "text"
-                end,
-            },
-        },
-    },
+    inspector = function(bufnr)
+        return vim.bo[bufnr].filetype == "text"
+    end,
 })
 ```
 
@@ -31,6 +25,43 @@ The inspector receives the buffer number and returns:
 - `false`: temporarily select ASCII.
 
 Inspectors are evaluated only in Insert mode, including completion submodes. Mode requirements are handled independently by the core.
+
+`require("imselect").set_inspector(fn, opts)` registers or replaces an inspector:
+
+| `opts` | Scope |
+| --- | --- |
+| Omitted or `{}` | Global |
+| `{ filetype = "lua" }` | Exact buffer filetype |
+| `{ filetype = { "text", "markdown" } }` | Each listed filetype |
+| `{ buffer = true }` or `{ buffer = 0 }` | Current buffer |
+| `{ buffer = bufnr }` | Specified valid buffer |
+
+`buffer` and `filetype` are mutually exclusive; `buffer = false` leaves buffer
+scope unselected. The most specific registered inspector wins:
+**buffer > filetype > global > built-in syntax detection**. Only that function is
+called; `false` means ASCII, not fallback to another inspector. Filetype matching
+uses the exact `vim.bo[bufnr].filetype`, including compound filetypes.
+
+Pass `nil` instead of a function to remove the override at that scope. Removing
+the global override restores built-in syntax detection. Registration works before
+or after `setup()`; an explicit `setup({ inspector = fn })` sets the global
+override without changing filetype or buffer registrations. Changes take effect
+on the next update; use `require("imselect").update()` to apply immediately after
+initialization.
+
+The inspector module owns all registrations and a single `BufWipeout` cleanup
+autocmd. Buffer overrides survive unload, `:bdelete`, and filetype changes, and
+release their function references when the buffer is wiped. Inspectors are
+resolved on each inspection, so changing an override or filetype needs no cache
+invalidation. Storage uses Lua tables, matching pairwise's buffer lifecycle.
+
+Migration: the former `strategy`, `strategy_provider`, and `add_strategy` APIs have
+been removed. Replace `strategy.strategy_provider.default.inspecter` with the
+top-level `inspector` setup option, and `set_inspecter(bufnr, fn)` with
+`set_inspector(fn, { buffer = bufnr })`. Replace filetype-based `condition` and
+`priority` selection with scoped registrations; move cursor-dependent decisions
+into the inspector itself. For one scope, the last registration replaces the
+previous one.
 
 ### Custom drivers
 
@@ -85,23 +116,17 @@ See the [driver implementations](../lua/imselect/driver/) for examples.
 输入法控制与编辑上下文判断相互独立。
 
 - **驱动（driver）** 决定如何控制输入法。
-- **策略（strategy）** 决定当前 Insert 上下文应使用 ASCII，还是恢复输入法。
+- **判断函数（inspector）** 决定当前 Insert 上下文应使用 ASCII，还是恢复输入法。
 
-### 自定义策略
+### 自定义 inspector
 
 覆盖默认的光标上下文判断函数：
 
 ```lua
 require("imselect").setup({
-    strategy = {
-        strategy_provider = {
-            default = {
-                inspecter = function(bufnr)
-                    return vim.bo[bufnr].filetype == "text"
-                end,
-            },
-        },
-    },
+    inspector = function(bufnr)
+        return vim.bo[bufnr].filetype == "text"
+    end,
 })
 ```
 
@@ -111,6 +136,37 @@ require("imselect").setup({
 - `false`：临时切换为 ASCII。
 
 判断函数只在 Insert 模式（含补全子模式）中求值。模式自身的要求由核心独立处理。
+
+通过 `require("imselect").set_inspector(fn, opts)` 注册或替换判断函数：
+
+| `opts` | 作用域 |
+| --- | --- |
+| 省略或 `{}` | 全局 |
+| `{ filetype = "lua" }` | 精确匹配 buffer 的 filetype |
+| `{ filetype = { "text", "markdown" } }` | 列出的每个 filetype |
+| `{ buffer = true }` 或 `{ buffer = 0 }` | 当前 buffer |
+| `{ buffer = bufnr }` | 指定的有效 buffer |
+
+`buffer` 与 `filetype` 互斥；`buffer = false` 表示不选择 buffer 作用域。
+按 **buffer > filetype > global > 内置语法判断** 选择最具体的已注册函数，
+每次只调用一个函数；返回 `false` 表示使用 ASCII，不会继续回退。
+Filetype 按 `vim.bo[bufnr].filetype` 精确匹配，复合 filetype 也按完整名称匹配。
+
+传入 `nil` 移除对应作用域的覆盖；移除全局覆盖后恢复内置语法判断。
+可在 `setup()` 前后注册；显式 `setup({ inspector = fn })` 设置全局覆盖，
+保留已注册的 filetype 和 buffer 覆盖。修改在下次更新时生效；初始化后可调用
+`require("imselect").update()` 立即应用。
+
+Inspector 模块统一持有注册表和一个 `BufWipeout` 清理 autocmd。
+Buffer 覆盖在卸载、`:bdelete` 或 filetype 改变后仍保留，wipe 时释放函数引用。
+每次判断直接解析三层作用域，因此修改注册或 filetype 无需缓存失效逻辑。
+使用 Lua 表存储，与 pairwise 的 buffer 生命周期一致。
+
+迁移：原 `strategy`、`strategy_provider` 和 `add_strategy` API 已移除。
+将 `strategy.strategy_provider.default.inspecter` 改为顶层 `inspector` 配置，
+将 `set_inspecter(bufnr, fn)` 改为 `set_inspector(fn, { buffer = bufnr })`。
+基于 filetype 的 `condition` 和 `priority` 改用作用域注册；依赖光标上下文的判断
+放进 inspector 函数。同一作用域后注册的函数替换前一个。
 
 ### 自定义驱动
 

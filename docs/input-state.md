@@ -61,9 +61,9 @@ that is not the intended behavior of deferred handling.
 ## 模式与总要求缓存 / Cached mode and combined requirements
 
 主流程分别保存模式是否要求 ASCII，以及合并后的总要求。Insert 的模式本身不
-要求 ASCII，改由当前缓冲区选中的策略判断光标上下文；搜索允许恢复；其余模式
-要求 ASCII。自定义策略和默认策略遵守同一边界，只在 Insert 中参与判断，仍按
-现有优先级选择一个策略，不引入多个同时生效的策略。
+要求 ASCII，改由当前缓冲区选中的 inspector 判断光标上下文；搜索允许恢复；其余模式
+要求 ASCII。按 buffer、filetype、global 顺序选择第一个已注册的 inspector，
+均未注册时使用内置语法判断。每次只调用一个 inspector，且只在 Insert 中求值。
 
 Insert 包含 `ic`（补全）和 `ix`（CTRL-X）等子模式，按 mode 的 `i` 前缀识别。
 这些子模式仍使用光标上下文要求，彼此切换不会激活模式的 ASCII 要求；否则每次
@@ -79,10 +79,10 @@ Insert 包含 `ic`（补全）和 `ix`（CTRL-X）等子模式，按 mode 的 `i
 为非 ASCII，更新恢复缓存后临时切回 ASCII。这里不监听每次系统输入法切换。
 
 The core caches whether the mode requires ASCII separately from the combined
-requirement. Insert delegates cursor classification to the selected buffer strategy;
-search permits restoration; other modes require ASCII. Default and custom strategies
-run only in Insert, using the existing priority selection rather than simultaneous
-strategies.
+requirement. Insert delegates cursor classification to the first registered inspector
+in buffer, filetype, global order, falling back to built-in syntax detection.
+Search permits restoration; other modes require ASCII. Only one inspector runs,
+and only in Insert mode.
 
 Insert includes completion submodes such as `ic` and `ix` (CTRL-X), identified by
 the `i` prefix. They continue to use the cursor context requirement. Transitions
@@ -103,11 +103,11 @@ listen to every system input-method change.
 
 ## 语法分类 / Syntax classification
 
-默认策略根据 Tree-sitter 节点类型判断插入点。未识别的节点继承最近的已分类祖先；
+默认 inspector 根据 Tree-sitter 节点类型判断插入点。未识别的节点继承最近的已分类祖先；
 没有匹配分类时使用 ASCII。注入语言分别使用对应的分类规则。未完成语法的结果取决于
 parser 当前生成的树。缺少可用 parser 或解析失败时，退回仅按模式切换。
 
-The default strategy classifies the insertion point by Tree-sitter node type.
+The default inspector classifies the insertion point by Tree-sitter node type.
 Unrecognized nodes inherit the nearest classified ancestor; with no match, they
 use ASCII. Injected languages use their own classification rules. Incomplete syntax
 follows the parser's current tree. Unavailable parsers or parse failures fall back
