@@ -117,6 +117,36 @@ to mode-aware switching.
 
 See [syntax.lua](../lua/imselect/syntax.lua) for node rules and boundary handling.
 
+## WSL PowerShell 驱动 / WSL PowerShell driver
+
+`wsl` 驱动将输入法状态保存在常驻 Windows PowerShell 进程中，包含 IME 开关和转换模式。
+进程启动时通过 `Add-Type` 编译 Windows API 绑定。Neovim 端异步发送请求，每次只允许
+一个请求在途，等待期间只保留最新意图；初始化完成前也只保留最新请求，不阻塞编辑。
+
+Windows API 操作失败时保留恢复状态，供后续请求重试。进程退出或通信超时后停止驱动并
+提示，保存状态随进程丢失，本次会话不自动重启。启动超时为 10 秒，请求超时为 1 秒，
+单次 Windows 消息调用使用 100 毫秒超时。Neovim 退出时停止进程。
+
+默认先从 WSL 的 `PATH` 查找 `powershell.exe`，再检查
+`/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe`；显式配置 `wsl.command`
+时只检查指定路径。自动驱动选择仍优先使用 `im_select`。
+
+The `wsl` driver keeps IME open status and conversion mode in a persistent Windows
+PowerShell process. Startup compiles the Windows API bindings with `Add-Type`.
+Neovim sends requests asynchronously, with one request in flight and only the latest
+pending intent retained, including during startup.
+
+Windows API failures preserve the saved state for a later request to retry. Worker
+exit or communication timeout stops the driver and reports a warning; saved state
+is lost with the process, and the worker is not restarted in that session. Startup
+has a 10-second timeout, requests have a 1-second timeout, and each Windows message
+call has a 100-millisecond timeout. Neovim shuts down the worker on exit.
+
+Executable discovery checks WSL's `PATH`, then
+`/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe`. An explicit
+`wsl.command` overrides both locations. Automatic driver selection prefers
+`im_select` over this driver.
+
 ## 与带 ID 请求的关系 / Relationship to requests with IDs
 
 两步处理决定控制端何时发出什么请求；ID 用于接收端协调多个控制者的请求。

@@ -55,7 +55,7 @@ Or a driver that manages temporary input states directly:
 
 State-based drivers automatically receive the shared state restoration mechanism.
 
-Built-in `neovide` and `kitty` drivers provide `temp_ascii`/`restore` directly. Neovide disables/re-enables IME input without saving the gate state; Kitty delegates temporary switching and restoration to its external controller. The `fcitx`, `macism`, `im_select`, and `winime` drivers use the shared state restoration mechanism.
+Built-in `neovide`, `kitty`, and `wsl` drivers provide `temp_ascii`/`restore` directly. Neovide disables/re-enables IME input without saving the gate state; Kitty delegates temporary switching and restoration to its external controller. WSL delegates state ownership to a persistent PowerShell worker, including IME open status and conversion mode; its asynchronous transport serializes requests and keeps only the latest pending intent. The `fcitx`, `macism`, `im_select`, and `winime` drivers use the shared state restoration mechanism.
 
 States may be booleans or strings, depending on the underlying input method API.
 
@@ -118,7 +118,7 @@ require("imselect").setup({
 
 基于状态的驱动会自动接入公共状态恢复机制。
 
-内置的 `neovide` 和 `kitty` 驱动直接提供 `temp_ascii`/`restore`。Neovide 关闭／重新允许 IME 输入，不保存开关状态；Kitty 将临时切换与恢复交给外部控制器。`fcitx`、`macism`、`im_select` 和 `winime` 驱动使用公共状态恢复机制。
+内置的 `neovide`、`kitty` 和 `wsl` 驱动直接提供 `temp_ascii`/`restore`。Neovide 关闭／重新允许 IME 输入，不保存开关状态；Kitty 将临时切换与恢复交给外部控制器。WSL 由常驻 PowerShell 进程保存 IME 开关和转换状态，异步传输串行处理请求，只保留最新的待处理意图。`fcitx`、`macism`、`im_select` 和 `winime` 驱动使用公共状态恢复机制。
 
 状态可以是布尔值或字符串，取决于底层输入法 API。
 

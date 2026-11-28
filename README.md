@@ -100,8 +100,9 @@ Context detection depends on the language parser; incomplete syntax can affect t
 | `macism` | macOS | `macism` executable |
 | `neovide` | Neovide | None |
 | `kitty` | Local or remote Kitty sessions | Local Kitty watcher |
-| `im_select` | Windows | `im-select.exe` |
+| `im_select` | Windows, WSL | `im-select.exe` |
 | `winime` | Windows | Native Neovim with LuaJIT |
+| `wsl` | WSL | Windows PowerShell (`powershell.exe`), with WSL interop enabled |
 
 ### Automatic driver selection
 
@@ -109,6 +110,7 @@ By default, imselect selects drivers in the following order:
 
 - Neovide sessions: `neovide`
 - SSH sessions: `kitty`
+- WSL: `im_select`, then `wsl` (PowerShell)
 - Linux: `fcitx`
 - macOS: `fcitx`, then `macism`
 - Windows: `im_select`, then `winime`
@@ -170,7 +172,8 @@ Your previous input source is restored automatically when needed.
 
 ### Windows
 
-The `im_select` driver requires [im-select.exe](https://github.com/daipeihust/im-select).
+For the `im_select` driver, install [im-select.exe](https://github.com/daipeihust/im-select)
+and add it to `PATH`, or set `im_select.command` to its full path.
 
 ```lua
 require("imselect").setup({
@@ -195,6 +198,18 @@ require("imselect").setup({
 It controls the foreground window's IME directly, without external executables.
 
 **Note:** Both Windows drivers still require native Windows testing.
+
+### WSL
+
+The Windows host's input method is controlled automatically: `im-select.exe` is
+preferred, with system PowerShell used when it is unavailable. Enable WSL interop
+for Windows executables; no additional configuration is needed.
+
+For custom executable locations, use WSL paths in `im_select.command` or
+`wsl.command`. Set `driver = "wsl"` to use PowerShell directly, or
+`driver = "fcitx"` for a Linux input method under WSLg.
+
+**Note:** WSL support still requires testing on a real system.
 
 ### Kitty and SSH
 

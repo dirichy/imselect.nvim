@@ -1,7 +1,7 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 
 local finders = {}
-for _, name in ipairs({ "fcitx", "macism", "im_select" }) do
+for _, name in ipairs({ "fcitx", "macism", "im_select", "wsl" }) do
 	finders[name] = require("imselect.driver." .. name).find_command
 end
 local available = {}
@@ -13,7 +13,7 @@ local selected
 ---@type {marker?: boolean}?
 local driver_opts
 local updates = 0
-for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test_os", "im_select", "winime" }) do
+for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test_os", "im_select", "winime", "wsl" }) do
 	package.preload["imselect.driver." .. name] = function()
 		return {
 			find_command = finders[name],
@@ -35,6 +35,14 @@ for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test
 end
 
 local system
+local wsl
+local has = vim.fn.has
+rawset(vim.fn, "has", function(feature)
+	if feature == "wsl" then
+		return wsl and 1 or 0
+	end
+	return has(feature)
+end)
 local function os_uname()
 	return { sysname = system }
 end
@@ -58,6 +66,57 @@ local cases = {
 	{ name = "Linux driver", system = "Linux", commands = { "fcitx5-remote" }, expected = "fcitx" },
 	{ name = "Linux legacy fcitx", commands = { "fcitx-remote" }, expected = "fcitx" },
 	{ name = "Linux without drivers" },
+	{ name = "WSL default driver", wsl = true, commands = { "im-select.exe" }, expected = "im_select" },
+	{
+		name = "WSL prefers Windows IME over Linux fcitx",
+		wsl = true,
+		commands = { "im-select.exe", "fcitx5-remote" },
+		expected = "im_select",
+	},
+	{
+		name = "WSL custom path",
+		wsl = true,
+		commands = { "/mnt/c/Tools/im select.exe" },
+		command = "/mnt/c/Tools/im select.exe",
+		expected = "im_select",
+	},
+	{ name = "WSL without Windows executable", wsl = true, commands = { "fcitx5-remote" } },
+	{ name = "WSL PowerShell fallback", wsl = true, commands = { "powershell.exe" }, expected = "wsl" },
+	{
+		name = "WSL PowerShell default Windows path",
+		wsl = true,
+		commands = { "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe" },
+		expected = "wsl",
+	},
+	{
+		name = "WSL prefers im-select over PowerShell",
+		wsl = true,
+		commands = { "im-select.exe", "powershell.exe" },
+		expected = "im_select",
+	},
+	{
+		name = "WSL custom PowerShell path",
+		wsl = true,
+		commands = { "/mnt/d/Windows/powershell.exe" },
+		wsl_command = "/mnt/d/Windows/powershell.exe",
+		expected = "wsl",
+	},
+	{
+		name = "WSL missing custom PowerShell path",
+		wsl = true,
+		commands = { "powershell.exe" },
+		wsl_command = "/missing/powershell.exe",
+	},
+	{
+		name = "WSL missing custom command does not fall back",
+		wsl = true,
+		command = "/missing/im-select.exe",
+		commands = { "im-select.exe", "fcitx5-remote" },
+	},
+	{ name = "WSL SSH defaults to Kitty", wsl = true, ssh = true, expected = "kitty" },
+	{ name = "WSL Neovide", wsl = true, neovide = true, expected = "neovide" },
+	{ name = "WSL explicit Linux driver", wsl = true, driver = "fcitx", expected = "fcitx" },
+	{ name = "WSL disabled driver", wsl = true, driver = false },
 	{ name = "macOS prefers fcitx", system = "Darwin", commands = { "fcitx5-remote", "macism" }, expected = "fcitx" },
 	{
 		name = "macOS app path",
@@ -107,17 +166,20 @@ for _, case in ipairs(cases) do
 	end
 	selected, driver_opts, updates = nil, nil, 0
 	system = case.system or "Linux"
+	wsl = case.wsl or false
 	vim.g.neovide = case.neovide or false
 	vim.env.SSH_TTY = nil
 	vim.env.SSH_CONNECTION = case.ssh and "test connection" or nil
 	vim.env.SSH_CLIENT = nil
 
 	local calls = 0
+	---@type table<string, any>
 	local opts = { driver = case.driver }
-	for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test_os", "im_select", "winime" }) do
+	for _, name in ipairs({ "neovide", "kitty", "fcitx", "macism", "test_ssh", "test_os", "im_select", "winime", "wsl" }) do
 		opts[name] = { marker = true }
 	end
 	opts.im_select.command = case.command
+	opts.wsl.command = case.wsl_command
 	if case.custom then
 		opts.driver = function(config)
 			assert(config.im_select.command == opts.im_select.command and config.fcitx.marker == true)

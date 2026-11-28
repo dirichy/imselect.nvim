@@ -100,8 +100,9 @@ Markdown 代码块中，代码使用 ASCII，注释和字符串仍可使用中�
 | `macism` | macOS | `macism` 可执行文件 |
 | `neovide` | Neovide | 无 |
 | `kitty` | 本地或远程 Kitty 会话 | 本地 Kitty watcher |
-| `im_select` | Windows | `im-select.exe` |
+| `im_select` | Windows、WSL | `im-select.exe` |
 | `winime` | Windows | 带 LuaJIT 的原生 Windows Neovim |
+| `wsl` | WSL | Windows 自带的 `powershell.exe`，需启用 WSL 互操作 |
 
 ### 自动选择驱动
 
@@ -109,6 +110,7 @@ Markdown 代码块中，代码使用 ASCII，注释和字符串仍可使用中�
 
 - Neovide 会话：`neovide`
 - SSH 会话：`kitty`
+- WSL：`im_select`，其次 `wsl`（PowerShell）
 - Linux：`fcitx`
 - macOS：`fcitx`，其次 `macism`
 - Windows：`im_select`，其次 `winime`
@@ -170,7 +172,8 @@ require("imselect").setup({
 
 ### Windows
 
-`im_select` 驱动需要 [im-select.exe](https://github.com/daipeihust/im-select)。
+使用 `im_select` 驱动时，安装 [im-select.exe](https://github.com/daipeihust/im-select) 并加入 `PATH`，
+或通过 `im_select.command` 指定完整路径。
 
 ```lua
 require("imselect").setup({
@@ -195,6 +198,17 @@ require("imselect").setup({
 它直接控制前台窗口的 IME 开关，无需外部可执行文件。
 
 **注意：** 两个 Windows 驱动都仍需原生 Windows 实机测试。
+
+### WSL
+
+默认控制 Windows 宿主输入法：优先使用 `im-select.exe`，未安装时自动使用系统 PowerShell。
+启用 WSL 的 Windows 程序互操作后，无需额外配置。
+
+自定义程序路径使用 WSL 路径：`im_select.command` 指定 `im-select.exe`，
+`wsl.command` 指定 PowerShell。需要直接使用 PowerShell 时，设置 `driver = "wsl"`。
+若在 WSLg 中使用 Linux 输入法，设置 `driver = "fcitx"`。
+
+**注意：** WSL 支持尚待实机验证。
 
 ### Kitty 与 SSH
 

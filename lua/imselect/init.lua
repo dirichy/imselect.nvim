@@ -13,8 +13,12 @@ local default_opts = {
 			return "kitty"
 		end
 		local system = vim.uv.os_uname().sysname
+		if system == "Linux" and vim.fn.has("wsl") == 1 then
+			system = "WSL"
+		end
 		local candidates = {
 			Linux = { "fcitx" },
+			WSL = { "im_select", "wsl" },
 			Darwin = { "fcitx", "macism" },
 			Windows_NT = { "im_select" },
 		}
